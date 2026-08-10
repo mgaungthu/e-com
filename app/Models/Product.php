@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
@@ -53,13 +53,17 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function getImageUrlAttribute(): ?string
+    public function images(): HasMany
     {
-        if (! $this->image_path) {
-            return null;
-        }
+        return $this->hasMany(ProductImage::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 
-        return Storage::disk('public')->url($this->image_path);
+    public function primaryImage(): HasOne
+    {
+        return $this->hasOne(ProductImage::class)
+            ->where('is_primary', true);
     }
 
     public function getStockStatusAttribute(): string
@@ -77,15 +81,29 @@ class Product extends Model
 
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => $this->image_path
-                ? asset('storage/'.$this->image_path)
-                : null, );
+        return Attribute::get(function (): ?string {
+            $primaryImage = $this->relationLoaded('primaryImage')
+                ? $this->primaryImage
+                : null;
+
+            $path = $primaryImage?->path ?? $this->image_path;
+
+            return $path ? asset('storage/'.$path) : null;
+        });
     }
 
     public function inventoryTransactions(): HasMany
     {
-        return $this->hasMany(
-            InventoryTransaction::class,
-        );
+        return $this->hasMany(InventoryTransaction::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
     }
 }

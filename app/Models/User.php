@@ -78,10 +78,7 @@ class User extends Authenticatable
      */
     public function customerNotes(): HasMany
     {
-        return $this->hasMany(
-            CustomerNote::class,
-            'user_id',
-        );
+        return $this->hasMany(CustomerNote::class, 'user_id');
     }
 
     /**
@@ -89,10 +86,12 @@ class User extends Authenticatable
      */
     public function createdCustomerNotes(): HasMany
     {
-        return $this->hasMany(
-            CustomerNote::class,
-            'created_by',
-        );
+        return $this->hasMany(CustomerNote::class, 'created_by');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     /**
@@ -115,9 +114,7 @@ class User extends Authenticatable
      */
     public function getFullNameAttribute(): string
     {
-        $fullName = trim(
-            "{$this->first_name} {$this->last_name}",
-        );
+        $fullName = trim("{$this->first_name} {$this->last_name}");
 
         return $this->display_name
             ?: ($fullName !== '' ? $fullName : $this->name);
@@ -136,5 +133,10 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function cart(): HasOne
+    {
+        return $this->hasOne(Cart::class);
     }
 }

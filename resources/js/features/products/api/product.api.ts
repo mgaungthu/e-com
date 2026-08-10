@@ -139,19 +139,24 @@ function toProductFormData(
         values.low_stock_threshold,
     );
 
+    values.images.forEach((image) => {
+        formData.append("images[]", image);
+    });
+
+    values.removed_image_ids.forEach((imageId) => {
+        formData.append("removed_image_ids[]", String(imageId));
+    });
+
+    values.image_order.forEach((imageId) => {
+        formData.append("image_order[]", String(imageId));
+    });
+
+    appendValue(formData, "primary_image_id", values.primary_image_id);
     appendValue(
         formData,
-        "image",
-        values.image,
+        "primary_new_image_index",
+        values.primary_new_image_index,
     );
-
-    if (values.remove_image) {
-        appendValue(
-            formData,
-            "remove_image",
-            true,
-        );
-    }
 
     appendValue(
         formData,

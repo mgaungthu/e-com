@@ -15,6 +15,15 @@ export type CustomerProfile = {
     total_spent: string;
     loyalty_points: number;
     last_order_at: string | null;
+    admin_note?: string | null;
+};
+
+export type CustomerUpdateValues = {
+    first_name: string;
+    last_name: string;
+    display_name: string;
+    phone: string;
+    admin_note: string;
 };
 
 export type CustomerAddress = {
@@ -73,6 +82,16 @@ export type CustomerNote = {
     creator: CustomerNoteCreator | null;
 };
 
+export type CustomerOrder = {
+    id: number;
+    order_number: string;
+    status: string;
+    payment_status: string;
+    grand_total: string;
+    items_count: number;
+    created_at: string;
+};
+
 export type Customer = {
     id: number;
     name: string;
@@ -102,6 +121,7 @@ export type Customer = {
     preference?: CustomerPreference | null;
     customer_notes?: CustomerNote[];
     customerNotes?: CustomerNote[];
+    orders?: CustomerOrder[];
 };
 
 export type CustomerListFilters = {

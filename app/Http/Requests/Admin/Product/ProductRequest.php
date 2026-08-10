@@ -43,7 +43,6 @@ abstract class ProductRequest extends FormRequest
                 ? $this->input('seo_description')
                 : null,
 
-            'remove_image' => $this->boolean('remove_image'),
             'is_active' => $this->boolean('is_active'),
             'is_featured' => $this->boolean('is_featured'),
         ]);
@@ -100,16 +99,47 @@ abstract class ProductRequest extends FormRequest
                 'min:0',
             ],
 
-            'image' => [
+            'images' => [
                 'nullable',
+                'array',
+                'max:10',
+            ],
+
+            'images.*' => [
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:5120',
             ],
 
-            'remove_image' => [
-                'required',
-                'boolean',
+            'removed_image_ids' => [
+                'nullable',
+                'array',
+            ],
+
+            'removed_image_ids.*' => [
+                'integer',
+                'distinct',
+            ],
+
+            'image_order' => [
+                'nullable',
+                'array',
+            ],
+
+            'image_order.*' => [
+                'integer',
+                'distinct',
+            ],
+
+            'primary_image_id' => [
+                'nullable',
+                'integer',
+            ],
+
+            'primary_new_image_index' => [
+                'nullable',
+                'integer',
+                'min:0',
             ],
 
             'is_active' => [
@@ -139,50 +169,38 @@ abstract class ProductRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' =>
-                'The product name field is required.',
+            'name.required' => 'The product name field is required.',
 
-            'sku.required' =>
-                'The SKU field is required.',
+            'sku.required' => 'The SKU field is required.',
 
-            'sku.unique' =>
-                'This SKU is already in use.',
+            'sku.unique' => 'This SKU is already in use.',
 
-            'barcode.unique' =>
-                'This barcode is already in use.',
+            'barcode.unique' => 'This barcode is already in use.',
 
-            'price.required' =>
-                'The regular price field is required.',
+            'price.required' => 'The regular price field is required.',
 
-            'sale_price.lt' =>
-                'The sale price must be less than the regular price.',
+            'sale_price.lt' => 'The sale price must be less than the regular price.',
 
-            'stock_quantity.required' =>
-                'The stock quantity field is required.',
+            'stock_quantity.required' => 'The stock quantity field is required.',
 
-            'low_stock_threshold.required' =>
-                'The low stock threshold field is required.',
+            'low_stock_threshold.required' => 'The low stock threshold field is required.',
 
-            'image.image' =>
-                'The uploaded file must be an image.',
+            'images.max' => 'A product can have at most 10 images.',
 
-            'image.mimes' =>
-                'The image must be a JPG, JPEG, PNG, or WebP file.',
+            'images.*.image' => 'The uploaded file must be an image.',
 
-            'image.max' =>
-                'The image must not be larger than 5 MB.',
+            'images.*.mimes' => 'The image must be a JPG, JPEG, PNG, or WebP file.',
+
+            'images.*.max' => 'The image must not be larger than 5 MB.',
         ];
     }
 
-    protected function failedValidation(
-        Validator $validator,
-    ): void {
-        throw new HttpResponseException(
-            response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $validator->errors(),
-            ], 422),
-        );
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'Validation failed.',
+            'errors' => $validator->errors(),
+        ], 422), );
     }
 }

@@ -10,52 +10,34 @@ use App\Models\Product;
 use App\Services\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 class InventoryController extends Controller
 {
-    public function __construct(
-        private readonly InventoryService $inventoryService,
-    ) {}
+    public function __construct(private readonly InventoryService $inventoryService) {}
 
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.view');
+
         $query = Product::query()
-            ->with('category:id,name')
+            ->with(['category:id,name', 'primaryImage'])
             ->latest();
 
-        $search = trim(
-            (string) $request->input('search'),
-        );
+        $search = trim((string) $request->input('search'));
 
         if ($search !== '') {
-            $query->where(function ($productQuery) use (
-                $search,
-            ) {
+            $query->where(function ($productQuery) use ($search) {
                 $productQuery
-                    ->where(
-                        'name',
-                        'like',
-                        "%{$search}%",
-                    )
-                    ->orWhere(
-                        'sku',
-                        'like',
-                        "%{$search}%",
-                    )
-                    ->orWhere(
-                        'barcode',
-                        'like',
-                        "%{$search}%",
-                    );
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('category_id')) {
-            $query->where(
-                'category_id',
-                $request->integer('category_id'),
-            );
+            $query->where('category_id', $request->integer('category_id'));
         }
 
         if ($request->filled('stock_status')) {
@@ -65,45 +47,20 @@ class InventoryController extends Controller
                     ->toString()
             ) {
                 'in_stock' => $query
-                    ->whereColumn(
-                        'stock_quantity',
-                        '>',
-                        'low_stock_threshold',
-                    ),
+                    ->whereColumn('stock_quantity', '>', 'low_stock_threshold'),
 
                 'low_stock' => $query
-                    ->where(
-                        'stock_quantity',
-                        '>',
-                        0,
-                    )
-                    ->whereColumn(
-                        'stock_quantity',
-                        '<=',
-                        'low_stock_threshold',
-                    ),
+                    ->where('stock_quantity', '>', 0)
+                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold'),
 
                 'out_of_stock' => $query
-                    ->where(
-                        'stock_quantity',
-                        '<=',
-                        0,
-                    ),
+                    ->where('stock_quantity', '<=', 0),
 
                 default => null,
             };
         }
 
-        $perPage = min(
-            max(
-                $request->integer(
-                    'per_page',
-                    15,
-                ),
-                1,
-            ),
-            100,
-        );
+        $perPage = min(max($request->integer('per_page', 15), 1), 100);
 
         return response()->json([
             'success' => true,
@@ -111,24 +68,12 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function adjust(
-        AdjustInventoryRequest $request,
-        Product $product,
-    ): JsonResponse {
+    public function adjust(AdjustInventoryRequest $request, Product $product): JsonResponse
+    {
         $validated = $request->validated();
 
         try {
-            $transaction =
-                $this->inventoryService->adjust(
-                    product: $product,
-                    type: InventoryTransactionType::from(
-                        $validated['type'],
-                    ),
-                    quantity: $validated['quantity'],
-                    user: $request->user(),
-                    reason: $validated['reason'] ?? null,
-                    note: $validated['note'] ?? null,
-                );
+            $transaction = $this->inventoryService->adjust(product: $product, type: InventoryTransactionType::from($validated['type']), quantity: $validated['quantity'], user: $request->user(), reason: $validated['reason'] ?? null, note: $validated['note'] ?? null);
         } catch (InvalidArgumentException $exception) {
             return response()->json([
                 'success' => false,
@@ -146,38 +91,23 @@ class InventoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' =>
-                'Inventory updated successfully.',
+            'message' => 'Inventory updated successfully.',
             'data' => [
                 'product' => $product,
-                'transaction' => $transaction->load(
-                    'user:id,name',
-                ),
+                'transaction' => $transaction->load('user:id,name'),
             ],
         ]);
     }
 
-    public function history(
-        Request $request,
-        Product $product,
-    ): JsonResponse {
-        $perPage = min(
-            max(
-                $request->integer(
-                    'per_page',
-                    15,
-                ),
-                1,
-            ),
-            100,
-        );
+    public function history(Request $request, Product $product): JsonResponse
+    {
+        Gate::authorize('inventory.view');
+
+        $perPage = min(max($request->integer('per_page', 15), 1), 100);
 
         $transactions =
             InventoryTransaction::query()
-                ->where(
-                    'product_id',
-                    $product->id,
-                )
+                ->where('product_id', $product->id)
                 ->with('user:id,name')
                 ->latest()
                 ->paginate($perPage);

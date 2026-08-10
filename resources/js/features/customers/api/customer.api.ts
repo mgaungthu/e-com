@@ -4,6 +4,9 @@ import type {
     CustomerDetailResponse,
     CustomerListFilters,
     CustomerListResponse,
+    CustomerNote,
+    CustomerStatus,
+    CustomerUpdateValues,
 } from "../types/customer.types";
 
 async function list(
@@ -48,7 +51,35 @@ async function show(
     return response.data;
 }
 
+async function update(customerId: number, values: CustomerUpdateValues) {
+    return (await api.patch(`/admin/customers/${customerId}`, values)).data;
+}
+
+async function updateStatus(customerId: number, status: CustomerStatus) {
+    return (await api.patch(`/admin/customers/${customerId}/status`, { status })).data;
+}
+
+async function createNote(customerId: number, note: string, isPinned: boolean) {
+    return (await api.post(`/admin/customers/${customerId}/notes`, { note, is_pinned: isPinned })).data;
+}
+
+async function updateNote(customerId: number, note: CustomerNote) {
+    return (await api.patch(`/admin/customers/${customerId}/notes/${note.id}`, {
+        note: note.note,
+        is_pinned: note.is_pinned,
+    })).data;
+}
+
+async function deleteNote(customerId: number, noteId: number) {
+    return (await api.delete(`/admin/customers/${customerId}/notes/${noteId}`)).data;
+}
+
 export const customerApi = {
     list,
     show,
+    update,
+    updateStatus,
+    createNote,
+    updateNote,
+    deleteNote,
 };

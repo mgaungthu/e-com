@@ -15,11 +15,19 @@ import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import InventoryPage from "@/features/inventory/pages/InventoryPage";
 import OrdersPage from "@/features/orders/pages/OrdersPage";
+import OrderDetailPage from "@/features/orders/pages/OrderDetailPage";
+import AccessManagementPage from "@/features/access/pages/AccessManagementPage";
+import ReportsPage from "@/features/reports/pages/ReportsPage";
+import SettingsPage from "@/features/settings/pages/SettingsPage";
+import FeedsPage from "@/features/feeds/pages/FeedsPage";
+import FeedCreatePage from "@/features/feeds/pages/FeedCreatePage";
+import FeedEditPage from "@/features/feeds/pages/FeedEditPage";
 
 import AdminLayout from "@/layouts/AdminLayout";
 
 import GuestRoute from "./GuestRoute";
 import ProtectedRoute from "./ProtectedRoute";
+import PermissionRoute from "./PermissionRoute";
 
 export default function AppRoutes() {
     return (
@@ -35,7 +43,7 @@ export default function AppRoutes() {
                         element={<Navigate to="/dashboard" replace />}
                     />
 
-                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
 
                     <Route path="/categories" element={<CategoriesPage />} />
                     <Route
@@ -46,19 +54,44 @@ export default function AppRoutes() {
                         path="/categories/:categoryId/edit"
                         element={<CategoryEditPage />}
                     />
-                    <Route path="/products" element={<ProductsPage />} />
+                    <Route
+                        path="/products"
+                        element={
+                            <PermissionRoute permission="products.view">
+                                <ProductsPage />
+                            </PermissionRoute>
+                        }
+                    />
 
                     <Route
                         path="/products/create"
-                        element={<ProductCreatePage />}
+                        element={
+                            <PermissionRoute permission="products.create">
+                                <ProductCreatePage />
+                            </PermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/products/:productId/edit"
-                        element={<ProductEditPage />}
+                        element={
+                            <PermissionRoute permission="products.update">
+                                <ProductEditPage />
+                            </PermissionRoute>
+                        }
                     />
+                    <Route path="/feeds" element={<PermissionRoute permission="feeds.view"><FeedsPage /></PermissionRoute>} />
+                    <Route path="/feeds/create" element={<PermissionRoute permission="feeds.create"><FeedCreatePage /></PermissionRoute>} />
+                    <Route path="/feeds/:feedId/edit" element={<PermissionRoute permission="feeds.update"><FeedEditPage /></PermissionRoute>} />
 
-                    <Route path="/inventory" element={<InventoryPage />} />
+                    <Route
+                        path="/inventory"
+                        element={
+                            <PermissionRoute permission="inventory.view">
+                                <InventoryPage />
+                            </PermissionRoute>
+                        }
+                    />
 
                     <Route path="/customers" element={<CustomersPage />} />
 
@@ -67,7 +100,25 @@ export default function AppRoutes() {
                         element={<CustomerDetailPage />}
                     />
 
-                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route
+                        path="/orders"
+                        element={
+                            <PermissionRoute permission="orders.view">
+                                <OrdersPage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/orders/:orderId"
+                        element={
+                            <PermissionRoute permission="orders.view">
+                                <OrderDetailPage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route path="/access" element={<PermissionRoute permission="staff.view"><AccessManagementPage /></PermissionRoute>} />
+                    <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
+                    <Route path="/settings" element={<PermissionRoute permission="settings.manage"><SettingsPage /></PermissionRoute>} />
                 </Route>
             </Route>
 

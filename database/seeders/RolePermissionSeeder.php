@@ -27,6 +27,11 @@ class RolePermissionSeeder extends Seeder
             'products.update',
             'products.delete',
 
+            'feeds.view',
+            'feeds.create',
+            'feeds.update',
+            'feeds.delete',
+
             'inventory.view',
             'inventory.adjust',
 
@@ -38,6 +43,9 @@ class RolePermissionSeeder extends Seeder
             'customers.view',
             'customers.update',
             'customers.block',
+
+            'reports.view',
+            'reports.export',
 
             'staff.view',
             'staff.manage',
@@ -96,8 +104,13 @@ class RolePermissionSeeder extends Seeder
             'products.create',
             'products.update',
             'products.delete',
+            'feeds.view',
+            'feeds.create',
+            'feeds.update',
+            'feeds.delete',
             'inventory.view',
             'inventory.adjust',
+            'reports.view',
         ]);
 
         $orderManager->syncPermissions([
@@ -107,6 +120,8 @@ class RolePermissionSeeder extends Seeder
             'orders.cancel',
             'orders.refund',
             'customers.view',
+            'reports.view',
+            'reports.export',
         ]);
 
         $customerSupport->syncPermissions([

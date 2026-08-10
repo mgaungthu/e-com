@@ -21,6 +21,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 
 import { CustomerStatusBadge } from "@/features/customers/components/CustomerStatusBadge";
+import { CustomerManagementPanel } from "@/features/customers/components/CustomerManagementPanel";
 import { useCustomer } from "@/features/customers/hooks/useCustomer";
 import type {
     Customer,
@@ -30,6 +31,7 @@ import type {
     CustomerPreference,
     CustomerProfile,
 } from "@/features/customers/types/customer.types";
+import { formatMmk } from "@/utils/currency";
 
 function getCustomerName(customer: Customer): string {
     const fullName = [
@@ -99,21 +101,6 @@ function formatDateTime(
         hour: "numeric",
         minute: "2-digit",
     }).format(date);
-}
-
-function formatCurrency(
-    value?: string | number | null,
-): string {
-    const amount = Number(value ?? 0);
-
-    if (!Number.isFinite(amount)) {
-        return "$0.00";
-    }
-
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-    }).format(amount);
 }
 
 function getProfile(
@@ -588,6 +575,7 @@ export default function CustomerDetailPage() {
     const notes = getNotes(customer);
     const devices = customer.devices ?? [];
     const preference = customer.preference ?? null;
+    const orders = customer.orders ?? [];
 
     return (
         <div className="space-y-6">
@@ -687,7 +675,7 @@ export default function CustomerDetailPage() {
                 <StatCard
                     icon={WalletCards}
                     label="Total spent"
-                    value={formatCurrency(
+                    value={formatMmk(
                         profile?.total_spent,
                     )}
                     helper="Lifetime customer value"
@@ -715,6 +703,8 @@ export default function CustomerDetailPage() {
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-6">
+                    <CustomerManagementPanel customer={customer} />
+
                     <DetailCard
                         title="Customer information"
                         description="Account, verification, and recent activity details."
@@ -880,6 +870,43 @@ export default function CustomerDetailPage() {
                                         key={note.id}
                                         note={note}
                                     />
+                                ))}
+                            </div>
+                        )}
+                    </DetailCard>
+
+                    <DetailCard
+                        title="Recent orders"
+                        description={`${orders.length} recent ${orders.length === 1 ? "order" : "orders"}`}
+                    >
+                        {orders.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                                <ShoppingBag size={25} className="mx-auto text-slate-400" />
+                                <p className="mt-3 text-sm font-medium text-slate-700">
+                                    No orders yet
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {orders.map((order) => (
+                                    <button
+                                        key={order.id}
+                                        type="button"
+                                        onClick={() => navigate(`/orders/${order.id}`)}
+                                        className="flex w-full items-center justify-between gap-4 py-4 text-left first:pt-0 last:pb-0"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {order.order_number}
+                                            </p>
+                                            <p className="mt-1 text-xs capitalize text-slate-500">
+                                                {order.items_count} items · {order.status} · {formatDate(order.created_at)}
+                                            </p>
+                                        </div>
+                                        <p className="whitespace-nowrap text-sm font-bold text-slate-900">
+                                            {formatMmk(order.grand_total)}
+                                        </p>
+                                    </button>
                                 ))}
                             </div>
                         )}

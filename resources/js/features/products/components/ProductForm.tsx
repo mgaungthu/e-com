@@ -8,7 +8,6 @@ import {
     FormErrorAlert,
     FormField,
     FormSection,
-    ImageUploadField,
     NumberInput,
     SelectInput,
     TextArea,
@@ -19,12 +18,13 @@ import {
     PRODUCT_FORM_INITIAL_VALUES,
     PRODUCT_VALIDATION_FIELD_ORDER,
 } from "@/features/products/constants/product-form.constants";
+import { ProductImageGalleryField } from "@/features/products/components/ProductImageGalleryField";
 import type {
     ProductFormProps,
     ProductFormValues,
     ProductValidationErrors,
 } from "@/features/products/types/product.types";
-import { useFocusFirstError, useImagePreview } from "@/hooks/forms";
+import { useFocusFirstError } from "@/hooks/forms";
 
 export function ProductForm({
     product,
@@ -38,10 +38,6 @@ export function ProductForm({
         PRODUCT_FORM_INITIAL_VALUES,
     );
     const [fieldErrors, setFieldErrors] = useState<ProductValidationErrors>({});
-
-    const { previewUrl, setFilePreview, removePreview } = useImagePreview(
-        product?.image_url ?? null,
-    );
 
     useFocusFirstError({
         errors: validationErrors,
@@ -71,8 +67,12 @@ export function ProductForm({
             sale_price: product.sale_price ?? "",
             stock_quantity: product.stock_quantity.toString(),
             low_stock_threshold: product.low_stock_threshold.toString(),
-            image: null,
-            remove_image: false,
+            images: [],
+            removed_image_ids: [],
+            image_order: (product.images ?? []).map((image) => image.id),
+            primary_image_id:
+                product.images?.find((image) => image.is_primary)?.id ?? null,
+            primary_new_image_index: null,
             is_active: product.is_active,
             is_featured: product.is_featured,
             seo_title: product.seo_title ?? "",
@@ -117,16 +117,146 @@ export function ProductForm({
         }
     }
 
-    function handleImageChange(file: File | null) {
-        updateField("image", file);
-        updateField("remove_image", false);
-        setFilePreview(file);
+    const existingImages = useMemo(() => {
+        if (!product) {
+            return [];
+        }
+
+        const order = new Map(
+            values.image_order.map((imageId, index) => [imageId, index]),
+        );
+
+        return (product.images ?? [])
+            .filter((image) => !values.removed_image_ids.includes(image.id))
+            .sort(
+                (left, right) =>
+                    (order.get(left.id) ?? left.sort_order) -
+                    (order.get(right.id) ?? right.sort_order),
+            );
+    }, [product, values.image_order, values.removed_image_ids]);
+
+    function clearImageErrors() {
+        setFieldErrors((current) => {
+            const nextErrors = { ...current };
+
+            Object.keys(nextErrors)
+                .filter((key) => key === "images" || key.startsWith("images."))
+                .forEach((key) => delete nextErrors[key]);
+
+            return nextErrors;
+        });
     }
 
-    function handleRemoveImage() {
-        updateField("image", null);
-        updateField("remove_image", true);
-        removePreview();
+    function handleAddImages(files: File[]) {
+        if (files.length === 0) {
+            return;
+        }
+
+        setValues((current) => ({
+            ...current,
+            images: [...current.images, ...files],
+            primary_new_image_index:
+                current.primary_image_id === null &&
+                current.primary_new_image_index === null
+                    ? current.images.length
+                    : current.primary_new_image_index,
+        }));
+        clearImageErrors();
+    }
+
+    function handleRemoveExistingImage(imageId: number) {
+        setValues((current) => {
+            const removedIds = [...current.removed_image_ids, imageId];
+            const remainingIds = current.image_order.filter(
+                (id) => id !== imageId && !removedIds.includes(id),
+            );
+
+            return {
+                ...current,
+                removed_image_ids: removedIds,
+                image_order: current.image_order.filter((id) => id !== imageId),
+                primary_image_id:
+                    current.primary_image_id === imageId
+                        ? (remainingIds[0] ?? null)
+                        : current.primary_image_id,
+                primary_new_image_index:
+                    current.primary_image_id === imageId &&
+                    remainingIds.length === 0 &&
+                    current.images.length > 0
+                        ? 0
+                        : current.primary_new_image_index,
+            };
+        });
+    }
+
+    function handleRemoveNewImage(index: number) {
+        setValues((current) => {
+            const images = current.images.filter((_, itemIndex) => itemIndex !== index);
+            let primaryNewIndex = current.primary_new_image_index;
+            let primaryImageId = current.primary_image_id;
+
+            if (primaryNewIndex === index) {
+                primaryNewIndex = images.length > 0 ? 0 : null;
+                primaryImageId = images.length === 0
+                    ? (current.image_order.find(
+                          (id) => !current.removed_image_ids.includes(id),
+                      ) ?? null)
+                    : null;
+            } else if (primaryNewIndex !== null && primaryNewIndex > index) {
+                primaryNewIndex -= 1;
+            }
+
+            return {
+                ...current,
+                images,
+                primary_image_id: primaryImageId,
+                primary_new_image_index: primaryNewIndex,
+            };
+        });
+    }
+
+    function handleMoveExistingImage(index: number, direction: -1 | 1) {
+        const targetIndex = index + direction;
+        const order = existingImages.map((image) => image.id);
+
+        if (targetIndex < 0 || targetIndex >= order.length) {
+            return;
+        }
+
+        [order[index], order[targetIndex]] = [order[targetIndex], order[index]];
+        updateField("image_order", order);
+    }
+
+    function handleMoveNewImage(index: number, direction: -1 | 1) {
+        const targetIndex = index + direction;
+
+        setValues((current) => {
+            if (targetIndex < 0 || targetIndex >= current.images.length) {
+                return current;
+            }
+
+            const images = [...current.images];
+            [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
+
+            let primaryNewIndex = current.primary_new_image_index;
+            if (primaryNewIndex === index) {
+                primaryNewIndex = targetIndex;
+            } else if (primaryNewIndex === targetIndex) {
+                primaryNewIndex = index;
+            }
+
+            return { ...current, images, primary_new_image_index: primaryNewIndex };
+        });
+    }
+
+    function getGalleryError(): string | null {
+        return (
+            fieldErrors.images?.[0] ??
+            Object.entries(fieldErrors).find(([key]) =>
+                key.startsWith("images."),
+            )?.[1]?.[0] ??
+            null
+        );
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -256,14 +386,14 @@ export function ProductForm({
                     <NumberInput
                         id="product-price"
                         data-form-field="price"
-                        prefix="$"
+                        suffix="MMK"
                         min="0"
-                        step="0.01"
+                        step="1"
                         value={values.price}
                         onChange={(event) =>
                             updateField("price", event.target.value)
                         }
-                        placeholder="0.00"
+                        placeholder="0"
                         error={getFieldError("price")}
                         aria-describedby={
                             getFieldError("price")
@@ -282,14 +412,14 @@ export function ProductForm({
                     <NumberInput
                         id="product-sale-price"
                         data-form-field="sale_price"
-                        prefix="$"
+                        suffix="MMK"
                         min="0"
-                        step="0.01"
+                        step="1"
                         value={values.sale_price}
                         onChange={(event) =>
                             updateField("sale_price", event.target.value)
                         }
-                        placeholder="0.00"
+                        placeholder="0"
                         error={getFieldError("sale_price")}
                         aria-describedby={
                             getFieldError("sale_price")
@@ -403,19 +533,29 @@ export function ProductForm({
             </FormSection>
 
             <FormSection
-                title="Product image"
-                description="Upload a clear image in PNG, JPG, or WebP format."
+                title="Product image gallery"
+                description="Upload up to 10 images, choose the primary image, and arrange their display order."
             >
-                <ImageUploadField
-                    id="product-image"
-                    previewUrl={previewUrl}
-                    file={values.image}
-                    error={getFieldError("image")}
-                    emptyTitle="Click to upload an image"
-                    helperText="PNG, JPG or WebP"
-                    previewAlt="Product preview"
-                    onChange={handleImageChange}
-                    onRemove={handleRemoveImage}
+                <ProductImageGalleryField
+                    existingImages={existingImages}
+                    newImages={values.images}
+                    primaryImageId={values.primary_image_id}
+                    primaryNewImageIndex={values.primary_new_image_index}
+                    error={getGalleryError()}
+                    disabled={isSubmitting}
+                    onAdd={handleAddImages}
+                    onRemoveExisting={handleRemoveExistingImage}
+                    onRemoveNew={handleRemoveNewImage}
+                    onSetPrimaryExisting={(imageId) => {
+                        updateField("primary_image_id", imageId);
+                        updateField("primary_new_image_index", null);
+                    }}
+                    onSetPrimaryNew={(index) => {
+                        updateField("primary_image_id", null);
+                        updateField("primary_new_image_index", index);
+                    }}
+                    onMoveExisting={handleMoveExistingImage}
+                    onMoveNew={handleMoveNewImage}
                 />
             </FormSection>
 

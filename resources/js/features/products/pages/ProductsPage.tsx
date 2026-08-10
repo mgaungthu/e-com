@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 
 import { useDeleteProduct } from "@/features/products/hooks/useProductMutations";
 import { useProducts } from "@/features/products/hooks/useProducts";
+import { formatMmk } from "@/utils/currency";
+import { useAuthStore } from "@/store/authStore";
 
 type ProductStatus = "all" | "active" | "inactive";
 
@@ -25,17 +27,6 @@ type StockStatus =
 type ErrorResponse = {
     message?: string;
 };
-
-function formatCurrency(value: number | string | null | undefined) {
-    const numericValue = Number(value ?? 0);
-
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(Number.isNaN(numericValue) ? 0 : numericValue);
-}
 
 function formatStockStatus(stockStatus: string) {
     switch (stockStatus) {
@@ -78,6 +69,10 @@ export default function ProductsPage() {
         useState<StockStatus>("all");
 
     const navigate = useNavigate();
+    const permissions = useAuthStore((state) => state.user?.permissions ?? []);
+    const canCreate = permissions.includes("products.create");
+    const canUpdate = permissions.includes("products.update");
+    const canDelete = permissions.includes("products.delete");
 
     const filters = useMemo(
         () => ({
@@ -138,14 +133,16 @@ export default function ProductsPage() {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => navigate("/products/create")}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                    <Plus size={18} />
-                    Add product
-                </button>
+                {canCreate ? (
+                    <button
+                        type="button"
+                        onClick={() => navigate("/products/create")}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                        <Plus size={18} />
+                        Add product
+                    </button>
+                ) : null}
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white">
@@ -284,9 +281,11 @@ export default function ProductsPage() {
                                             Status
                                         </th>
 
-                                        <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                            Actions
-                                        </th>
+                                        {canUpdate || canDelete ? (
+                                            <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                Actions
+                                            </th>
+                                        ) : null}
                                     </tr>
                                 </thead>
 
@@ -347,7 +346,7 @@ export default function ProductsPage() {
 
                                                 <td className="px-5 py-4">
                                                     <div className="text-sm font-semibold text-slate-900">
-                                                        {formatCurrency(
+                                                        {formatMmk(
                                                             displayPrice,
                                                         )}
                                                     </div>
@@ -361,7 +360,7 @@ export default function ProductsPage() {
                                                                 product.price,
                                                             ) && (
                                                             <div className="mt-0.5 text-xs text-slate-400 line-through">
-                                                                {formatCurrency(
+                                                                {formatMmk(
                                                                     product.price,
                                                                 )}
                                                             </div>
@@ -408,9 +407,10 @@ export default function ProductsPage() {
                                                     </span>
                                                 </td>
 
+                                                {canUpdate || canDelete ? (
                                                 <td className="px-5 py-4">
                                                     <div className="flex justify-end gap-2">
-                                                        <button
+                                                        {canUpdate ? <button
                                                             type="button"
                                                             onClick={() =>
                                                                 navigate(
@@ -425,9 +425,9 @@ export default function ProductsPage() {
                                                                     16
                                                                 }
                                                             />
-                                                        </button>
+                                                        </button> : null}
 
-                                                        <button
+                                                        {canDelete ? <button
                                                             type="button"
                                                             disabled={
                                                                 deleteMutation.isPending
@@ -446,9 +446,10 @@ export default function ProductsPage() {
                                                                     16
                                                                 }
                                                             />
-                                                        </button>
+                                                        </button> : null}
                                                     </div>
                                                 </td>
+                                                ) : null}
                                             </tr>
                                         );
                                     })}

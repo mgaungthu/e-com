@@ -27,6 +27,7 @@ export default function ProductCreatePage() {
     const categoriesQuery = useCategories({
         page: 1,
         status: "active",
+        perPage: 100,
     });
 
     const createMutation = useCreateProduct();
@@ -42,15 +43,10 @@ export default function ProductCreatePage() {
                 onBack={() => navigate("/products")}
             />
 
-            {formError && (
-                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {formError}
-                </div>
-            )}
-
             <ProductForm
                 categories={categories}
                 validationErrors={validationErrors}
+                formError={formError}
                 isSubmitting={createMutation.isPending}
                 onSubmit={async (values) => {
                     setValidationErrors({});

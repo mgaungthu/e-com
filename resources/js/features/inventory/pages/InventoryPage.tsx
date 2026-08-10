@@ -21,8 +21,12 @@ import type {
     InventoryProduct,
     InventoryStockStatus,
 } from "@/features/inventory/types/inventory.types";
+import { useAuthStore } from "@/store/authStore";
 
 export default function InventoryPage() {
+    const canAdjust = useAuthStore((state) =>
+        state.user?.permissions.includes("inventory.adjust") ?? false,
+    );
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [categoryId, setCategoryId] = useState("");
@@ -208,6 +212,7 @@ export default function InventoryPage() {
                     onAdjust={setAdjustmentProduct}
                     onViewHistory={setHistoryProduct}
                     onPageChange={setPage}
+                    canAdjust={canAdjust}
                 />
             </div>
 

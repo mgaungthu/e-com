@@ -1,0 +1,1 @@
+export const feedKeys = { all: ["feeds"] as const, lists: () => [...feedKeys.all, "list"] as const, list: (filters: object) => [...feedKeys.lists(), filters] as const, detail: (id: number) => [...feedKeys.all, "detail", id] as const };

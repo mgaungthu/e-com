@@ -20,6 +20,7 @@ type InventoryTableProps = {
     onAdjust: (product: InventoryProduct) => void;
     onViewHistory: (product: InventoryProduct) => void;
     onPageChange: (page: number) => void;
+    canAdjust: boolean;
 };
 
 export function InventoryTable({
@@ -31,6 +32,7 @@ export function InventoryTable({
     onAdjust,
     onViewHistory,
     onPageChange,
+    canAdjust,
 }: InventoryTableProps) {
     if (isLoading) {
         return (
@@ -157,7 +159,7 @@ export function InventoryTable({
 
                                 <td className="px-5 py-4">
                                     <div className="flex justify-end gap-2">
-                                        <button
+                                        {canAdjust ? <button
                                             type="button"
                                             onClick={() =>
                                                 onViewHistory(product)
@@ -167,7 +169,7 @@ export function InventoryTable({
                                         >
                                             <History size={15} />
                                             History
-                                        </button>
+                                        </button> : null}
                                         <button
                                             type="button"
                                             onClick={() => onAdjust(product)}

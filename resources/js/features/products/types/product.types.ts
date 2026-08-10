@@ -8,6 +8,16 @@ export type ProductStockStatus =
     | 'low_stock'
     | 'out_of_stock';
 
+export type ProductImage = {
+    id: number;
+    product_id: number;
+    path: string;
+    url: string;
+    alt_text: string | null;
+    is_primary: boolean;
+    sort_order: number;
+};
+
 export type Product = {
     id: number;
     category_id: number | null;
@@ -30,6 +40,7 @@ export type Product = {
 
     image_path: string | null;
     image_url: string | null;
+    images?: ProductImage[];
 
     is_active: boolean;
     is_featured: boolean;
@@ -87,8 +98,11 @@ export type ProductFormValues = {
     sale_price: string;
     stock_quantity: string;
     low_stock_threshold: string;
-    image: File | null;
-    remove_image: boolean;
+    images: File[];
+    removed_image_ids: number[];
+    image_order: number[];
+    primary_image_id: number | null;
+    primary_new_image_index: number | null;
     is_active: boolean;
     is_featured: boolean;
     seo_title: string;

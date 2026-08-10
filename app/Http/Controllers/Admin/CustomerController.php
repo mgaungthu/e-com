@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Customer\UpdateCustomerRequest;
+use App\Http\Requests\Admin\Customer\UpdateCustomerStatusRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,10 +13,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        abort_unless(
-            $request->user()?->can('customers.view'),
-            403,
-        );
+        abort_unless($request->user()?->can('customers.view'), 403);
 
         $query = User::query()
             ->role('customer')
@@ -24,9 +23,7 @@ class CustomerController extends Controller
             ->withCount('addresses')
             ->latest();
 
-        $search = trim(
-            (string) $request->input('search'),
-        );
+        $search = trim((string) $request->input('search'));
 
         if ($search !== '') {
             $query->where(function ($customerQuery) use ($search) {
@@ -46,25 +43,13 @@ class CustomerController extends Controller
                     ->string('status')
                     ->toString()
             ) {
-                'active' => $query->where(
-                    'status',
-                    'active',
-                ),
+                'active' => $query->where('status', 'active'),
 
-                'inactive' => $query->where(
-                    'status',
-                    'inactive',
-                ),
+                'inactive' => $query->where('status', 'inactive'),
 
-                'blocked' => $query->where(
-                    'status',
-                    'blocked',
-                ),
+                'blocked' => $query->where('status', 'blocked'),
 
-                'pending' => $query->where(
-                    'status',
-                    'pending',
-                ),
+                'pending' => $query->where('status', 'pending'),
 
                 default => null,
             };
@@ -76,36 +61,19 @@ class CustomerController extends Controller
                     ->string('order_status')
                     ->toString()
             ) {
-                'has_orders' => $query->whereHas(
-                    'customerProfile',
-                    fn ($profileQuery) => $profileQuery
-                        ->where('total_orders', '>', 0),
-                ),
+                'has_orders' => $query->whereHas('customerProfile', fn ($profileQuery) => $profileQuery
+                    ->where('total_orders', '>', 0), ),
 
-                'no_orders' => $query->where(
-                    fn ($customerQuery) => $customerQuery
-                        ->whereDoesntHave('customerProfile')
-                        ->orWhereHas(
-                            'customerProfile',
-                            fn ($profileQuery) => $profileQuery
-                                ->where('total_orders', 0),
-                        ),
-                ),
+                'no_orders' => $query->where(fn ($customerQuery) => $customerQuery
+                    ->whereDoesntHave('customerProfile')
+                    ->orWhereHas('customerProfile', fn ($profileQuery) => $profileQuery
+                        ->where('total_orders', 0), ), ),
 
                 default => null,
             };
         }
 
-        $perPage = min(
-            max(
-                $request->integer(
-                    'per_page',
-                    15,
-                ),
-                1,
-            ),
-            100,
-        );
+        $perPage = min(max($request->integer('per_page', 15), 1), 100);
 
         return response()->json([
             'success' => true,
@@ -113,19 +81,11 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function show(
-        Request $request,
-        User $customer,
-    ): JsonResponse {
-        abort_unless(
-            $request->user()?->can('customers.view'),
-            403,
-        );
+    public function show(Request $request, User $customer): JsonResponse
+    {
+        abort_unless($request->user()?->can('customers.view'), 403);
 
-        abort_unless(
-            $customer->hasRole('customer'),
-            404,
-        );
+        abort_unless($customer->hasRole('customer'), 404);
 
         $customer->load([
             'customerProfile',
@@ -143,7 +103,13 @@ class CustomerController extends Controller
                 ->with('creator:id,name,first_name,last_name,display_name')
                 ->orderByDesc('is_pinned')
                 ->latest(),
+
+            'orders' => fn ($query) => $query
+                ->withCount('items')
+                ->latest()
+                ->limit(20),
         ]);
+        $customer->customerProfile?->makeVisible('admin_note');
 
         return response()->json([
             'success' => true,
@@ -151,5 +117,22 @@ class CustomerController extends Controller
                 'customer' => $customer,
             ],
         ]);
+    }
+
+    public function update(UpdateCustomerRequest $request, User $customer): JsonResponse
+    {
+        abort_unless($customer->hasRole('customer'), 404);
+        $customer->update($request->safe()->except('admin_note'));
+        $customer->customerProfile()->updateOrCreate(['user_id' => $customer->id], ['admin_note' => $request->validated('admin_note')]);
+
+        return response()->json(['success' => true, 'message' => 'Customer updated successfully.', 'data' => ['customer' => $customer->fresh()]]);
+    }
+
+    public function updateStatus(UpdateCustomerStatusRequest $request, User $customer): JsonResponse
+    {
+        abort_unless($customer->hasRole('customer'), 404);
+        $customer->update(['status' => $request->validated('status')]);
+
+        return response()->json(['success' => true, 'message' => 'Customer status updated successfully.', 'data' => ['customer' => $customer->fresh()]]);
     }
 }
