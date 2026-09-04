@@ -130,8 +130,8 @@ type AddressLike = {
     street?: string | null;
     address?: string | null;
 
-    address_line_1?: string | null;
-    address_line_2?: string | null;
+    address_line_one?: string | null;
+    address_line_two?: string | null;
 
     address_line_one?: string | null;
     address_line_two?: string | null;
@@ -167,14 +167,14 @@ function AddressCard({
 
     const primaryAddress =
         address?.address_line_one ||
-        address?.address_line_1 ||
+        address?.address_line_one ||
         address?.address ||
         address?.street ||
         null;
 
     const secondaryAddress =
         address?.address_line_two ||
-        address?.address_line_2 ||
+        address?.address_line_two ||
         null;
 
     const buildingLine = [

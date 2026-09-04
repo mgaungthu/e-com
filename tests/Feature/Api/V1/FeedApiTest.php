@@ -88,6 +88,47 @@ class FeedApiTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('images.0');
     }
 
+    public function test_only_authorized_staff_can_publish_a_feed_from_mobile(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('public');
+
+        $customer = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+        $customer->assignRole('customer');
+        Sanctum::actingAs($customer);
+
+        $this->post('/api/v1/feeds', [
+            'status' => 'published',
+            'is_active' => true,
+            'published_at' => now()->toDateTimeString(),
+            'images' => [UploadedFile::fake()->image('feed.png')],
+        ])->assertForbidden();
+
+        $admin = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+        $admin->assignRole('admin');
+        Sanctum::actingAs($admin);
+
+        $this->post('/api/v1/feeds', [
+            'caption' => 'Published from mobile',
+            'status' => 'published',
+            'is_active' => true,
+            'published_at' => now()->toDateTimeString(),
+            'images' => [UploadedFile::fake()->image('feed.png')],
+        ])->assertCreated()
+            ->assertJsonPath('data.feed.caption', 'Published from mobile');
+
+        $this->assertDatabaseHas('feeds', [
+            'user_id' => $admin->id,
+            'caption' => 'Published from mobile',
+        ]);
+    }
+
     private function feed(array $overrides = []): Feed
     {
         return Feed::query()->create(['caption' => 'A feed post', 'status' => FeedStatus::Published, 'is_active' => true, 'published_at' => now()->subMinute(), ...$overrides]);

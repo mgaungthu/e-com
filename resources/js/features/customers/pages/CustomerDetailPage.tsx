@@ -150,8 +150,8 @@ function getAddressLines(
 
     return [
         address.company,
-        address.address_line_1,
-        address.address_line_2,
+        address.address_line_one,
+        address.address_line_two,
         locality,
         address.country,
     ].filter(

@@ -3,15 +3,54 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Feed\StoreFeedRequest;
 use App\Http\Requests\Api\V1\Feed\StoreFeedCommentRequest;
 use App\Http\Resources\Api\V1\FeedCommentResource;
 use App\Http\Resources\Api\V1\FeedResource;
 use App\Models\Feed;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FeedController extends Controller
 {
+    public function store(StoreFeedRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        $feed = DB::transaction(function () use ($request, $data): Feed {
+            $feed = Feed::query()->create([
+                'user_id' => $request->user()->id,
+                'caption' => $data['caption'] ?? null,
+                'status' => $data['status'],
+                'is_active' => $request->boolean('is_active'),
+                'published_at' => $data['published_at'] ?? null,
+            ]);
+
+            foreach ($data['products'] ?? [] as $index => $product) {
+                $feed->products()->attach($product['product_id'], [
+                    'sort_order' => $product['sort_order'] ?? $index,
+                ]);
+            }
+
+            foreach ($request->file('images', []) as $index => $image) {
+                $feed->media()->create([
+                    'type' => 'image',
+                    'file_path' => $image->store('feeds', 'public'),
+                    'sort_order' => $index,
+                ]);
+            }
+
+            return $feed;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Feed post created successfully.',
+            'data' => ['feed' => new FeedResource($this->visibleQuery($request)->findOrFail($feed->id))],
+        ], 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $feeds = $this->visibleQuery($request)->paginate(min(max($request->integer('per_page', 15), 1), 50));

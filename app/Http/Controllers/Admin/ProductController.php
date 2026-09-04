@@ -7,15 +7,17 @@ use App\Http\Requests\Admin\Product\StoreProductRequest;
 use App\Http\Requests\Admin\Product\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Services\ProductImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
+    public function __construct(private readonly ProductImageService $productImageService) {}
+
     public function index(Request $request): JsonResponse
     {
         Gate::authorize('products.view');
@@ -202,7 +204,8 @@ class ProductController extends Controller
             ->map(fn (mixed $id): int => (int) $id);
 
         foreach ($images->whereIn('id', $removedIds) as $image) {
-            Storage::disk('public')->delete($image->path);
+            $this->productImageService->delete($image->path);
+
             $image->delete();
         }
 
@@ -223,8 +226,10 @@ class ProductController extends Controller
         $nextSortOrder = $orderedImages->count();
 
         foreach ($request->file('images', []) as $index => $file) {
+            $path = $this->productImageService->store($file);
+
             $newImages->put($index, $product->images()->create([
-                'path' => $file->store('products', 'public'),
+                'path' => $path,
                 'alt_text' => $product->name,
                 'is_primary' => false,
                 'sort_order' => $nextSortOrder++,

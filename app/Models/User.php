@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,11 +31,10 @@ use Spatie\Permission\Traits\HasRoles;
     'password',
     'remember_token',
 ])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens;
-
     use HasFactory;
     use HasRoles;
     use Notifiable;
@@ -78,7 +76,10 @@ class User extends Authenticatable
      */
     public function customerNotes(): HasMany
     {
-        return $this->hasMany(CustomerNote::class, 'user_id');
+        return $this->hasMany(
+            CustomerNote::class,
+            'user_id',
+        );
     }
 
     /**
@@ -86,16 +87,31 @@ class User extends Authenticatable
      */
     public function createdCustomerNotes(): HasMany
     {
-        return $this->hasMany(CustomerNote::class, 'created_by');
+        return $this->hasMany(
+            CustomerNote::class,
+            'created_by',
+        );
     }
 
+    /**
+     * Get the user's orders.
+     */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
     }
 
     /**
-     * Determine whether the account can access the admin dashboard.
+     * Get the user's cart.
+     */
+    public function cart(): HasOne
+    {
+        return $this->hasOne(Cart::class);
+    }
+
+    /**
+     * Determine whether the account can access
+     * the admin dashboard.
      */
     public function canAccessDashboard(): bool
     {
@@ -114,10 +130,16 @@ class User extends Authenticatable
      */
     public function getFullNameAttribute(): string
     {
-        $fullName = trim("{$this->first_name} {$this->last_name}");
+        $fullName = trim(
+            "{$this->first_name} {$this->last_name}"
+        );
 
         return $this->display_name
-            ?: ($fullName !== '' ? $fullName : $this->name);
+            ?: (
+                $fullName !== ''
+                    ? $fullName
+                    : $this->name
+            );
     }
 
     /**
@@ -135,8 +157,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function cart(): HasOne
+    public function emailVerificationCode(): HasOne
     {
-        return $this->hasOne(Cart::class);
+        return $this->hasOne(EmailVerificationCode::class);
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
     }
 }

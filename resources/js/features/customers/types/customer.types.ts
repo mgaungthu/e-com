@@ -34,8 +34,8 @@ export type CustomerAddress = {
     last_name: string | null;
     company: string | null;
     phone: string | null;
-    address_line_1: string;
-    address_line_2: string | null;
+    address_line_one: string;
+    address_line_two: string | null;
     city: string;
     state: string | null;
     postal_code: string | null;

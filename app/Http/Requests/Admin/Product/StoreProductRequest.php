@@ -48,14 +48,28 @@ class StoreProductRequest extends ProductRequest
                     return;
                 }
 
-                $primaryNewImageIndex = $this->input('primary_new_image_index');
-                $newImageCount = count($this->file('images', []));
+                $primaryNewImageIndex = $this->input(
+                    'primary_new_image_index'
+                );
+
+                $newImageCount = count(
+                    $this->file('images', [])
+                );
+
+                if ($primaryNewImageIndex === null) {
+                    return;
+                }
+
+                $index = (int) $primaryNewImageIndex;
 
                 if (
-                    $primaryNewImageIndex !== null &&
-                    (int) $primaryNewImageIndex >= $newImageCount
+                    $index < 0 ||
+                    $index >= $newImageCount
                 ) {
-                    $validator->errors()->add('primary_new_image_index', 'The selected primary image is invalid.');
+                    $validator->errors()->add(
+                        'primary_new_image_index',
+                        'The selected primary image is invalid.'
+                    );
                 }
             },
         ];

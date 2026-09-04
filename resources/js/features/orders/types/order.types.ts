@@ -62,8 +62,8 @@ export type OrderAddress = {
     unit?: string | null;
     street?: string | null;
     address?: string | null;
-    address_line_1?: string | null;
-    address_line_2?: string | null;
+    address_line_one?: string | null;
+    address_line_two?: string | null;
 
     township?: string | null;
     district?: string | null;

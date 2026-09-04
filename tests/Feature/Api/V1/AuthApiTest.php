@@ -5,11 +5,19 @@ namespace Tests\Feature\Api\V1;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Role::findOrCreate('customer');
+    }
 
     public function test_customer_can_register(): void
     {
@@ -27,6 +35,8 @@ class AuthApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.email', 'aung@example.com')
+            ->assertJsonPath('data.user.email_verified_at', null)
+            ->assertJsonPath('data.requires_email_verification', true)
             ->assertJsonStructure([
                 'success',
                 'message',
