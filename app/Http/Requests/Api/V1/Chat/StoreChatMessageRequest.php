@@ -13,46 +13,50 @@ class StoreChatMessageRequest extends FormRequest
     }
 
     public function rules(): array
-    {
-        return [
-            'type' => [
-                'required',
-                'string',
-                Rule::in([
-                    'text',
-                    'feed',
-                    'product',
-                ]),
-            ],
+        {
+            return [
+                'type' => [
+                    'required',
+                    'string',
+                    Rule::in([
+                        'text',
+                        'image',
+                        'feed',
+                        'product',
+                    ]),
+                ],
 
-            'message' => [
-                Rule::requiredIf(
-                    fn () => $this->input('type') === 'text',
-                ),
-                'nullable',
-                'string',
-                'max:5000',
-            ],
+                'message' => [
+                    'nullable',
+                    'string',
+                    'max:5000',
+                    'required_if:type,text',
+                ],
 
-            'feed_id' => [
-                Rule::requiredIf(
-                    fn () => $this->input('type') === 'feed',
-                ),
-                'nullable',
-                'integer',
-                'exists:feeds,id',
-            ],
+                'image' => [
+                    'nullable',
+                    'file',
+                    'image',
+                    'mimes:jpg,jpeg,png,webp',
+                    'max:8192',
+                    'required_if:type,image',
+                ],
 
-            'product_id' => [
-                Rule::requiredIf(
-                    fn () => $this->input('type') === 'product',
-                ),
-                'nullable',
-                'integer',
-                'exists:products,id',
-            ],
-        ];
-    }
+                'feed_id' => [
+                    'nullable',
+                    'integer',
+                    'exists:feeds,id',
+                    'required_if:type,feed',
+                ],
+
+                'product_id' => [
+                    'nullable',
+                    'integer',
+                    'exists:products,id',
+                    'required_if:type,product',
+                ],
+            ];
+        }
 
     protected function prepareForValidation(): void
     {

@@ -10,9 +10,12 @@ use App\Models\Conversation;
 use App\Models\Feed;
 use App\Models\Message;
 use App\Models\Product;
+use App\Services\Chat\ChatImageService;
+use App\Services\Notifications\ChatPushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ChatController extends Controller
 {
@@ -21,24 +24,27 @@ class ChatController extends Controller
      *
      * The first request automatically creates the conversation.
      */
-    public function show(Request $request): JsonResponse
-    {
-        $conversation = $this->conversationForUser(
-            $request,
-        );
+    public function show(
+        Request $request
+    ): JsonResponse {
+        $conversation =
+            $this->conversationForUser(
+                $request
+            );
 
         $conversation->load([
             'latestMessage.sender',
             'latestMessage.feed',
-            'latestMessage.product',
+            'latestMessage.product.primaryImage',
         ]);
 
         return response()->json([
             'success' => true,
+
             'data' => [
                 'conversation' =>
                     new ChatConversationResource(
-                        $conversation,
+                        $conversation
                     ),
             ],
         ]);
@@ -47,11 +53,13 @@ class ChatController extends Controller
     /**
      * Return messages for the authenticated customer's conversation.
      */
-    public function messages(Request $request): JsonResponse
-    {
-        $conversation = $this->conversationForUser(
-            $request,
-        );
+    public function messages(
+        Request $request
+    ): JsonResponse {
+        $conversation =
+            $this->conversationForUser(
+                $request
+            );
 
         $perPage = min(
             max(
@@ -64,15 +72,18 @@ class ChatController extends Controller
             100,
         );
 
-        $messages = $conversation
-            ->messages()
-            ->with([
-                'sender:id,name,display_name,avatar_path',
-                'feed',
-                'product',
-            ])
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        $messages =
+            $conversation
+                ->messages()
+                ->with([
+                    'sender:id,name,display_name,avatar_path',
+                    'feed',
+                    'product.primaryImage',
+                ])
+                ->orderByDesc('id')
+                ->paginate(
+                    $perPage
+                );
 
         return response()->json([
             'success' => true,
@@ -80,7 +91,7 @@ class ChatController extends Controller
             'data' => [
                 'messages' =>
                     ChatMessageResource::collection(
-                        $messages->getCollection(),
+                        $messages->getCollection()
                     ),
 
                 'meta' => [
@@ -105,23 +116,20 @@ class ChatController extends Controller
      */
     public function storeMessage(
         StoreChatMessageRequest $request,
+        ChatPushNotificationService $chatPush,
+        ChatImageService $chatImageService,
     ): JsonResponse {
         $validated =
             $request->validated();
 
         $conversation =
             $this->conversationForUser(
-                $request,
+                $request
             );
 
         /*
         |--------------------------------------------------------------------------
-        | Validate shared resources
-        |--------------------------------------------------------------------------
-        |
-        | exists validation confirms the row exists.
-        | These extra checks make sure customers cannot share hidden feeds or
-        | inactive products into the support chat.
+        | Validate Shared Feed
         |--------------------------------------------------------------------------
         */
 
@@ -132,9 +140,15 @@ class ChatController extends Controller
             Feed::query()
                 ->visible()
                 ->findOrFail(
-                    $validated['feed_id'],
+                    $validated['feed_id']
                 );
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validate Shared Product
+        |--------------------------------------------------------------------------
+        */
 
         if (
             $validated['type'] ===
@@ -143,83 +157,208 @@ class ChatController extends Controller
             Product::query()
                 ->where(
                     'is_active',
-                    true,
+                    true
                 )
                 ->findOrFail(
-                    $validated['product_id'],
+                    $validated[
+                        'product_id'
+                    ]
                 );
         }
 
-        $message = DB::transaction(
-            function () use (
-                $request,
-                $validated,
-                $conversation,
-            ): Message {
-                $message =
-                    $conversation
-                        ->messages()
-                        ->create([
-                            'sender_type' =>
-                                'customer',
+        /*
+        |--------------------------------------------------------------------------
+        | Store Image
+        |--------------------------------------------------------------------------
+        */
 
-                            'sender_id' =>
-                                $request
-                                    ->user()
-                                    ->id,
+        $imageData = [];
 
-                            'type' =>
-                                $validated[
-                                    'type'
-                                ],
+        try {
+            if (
+                $validated['type'] ===
+                'image'
+            ) {
+                $image =
+                    $request->file(
+                        'image'
+                    );
 
-                            'message' =>
-                                $validated[
-                                    'message'
-                                ] ?? null,
+                if (!$image) {
+                    return response()->json([
+                        'success' => false,
 
-                            'feed_id' =>
-                                $validated[
-                                    'feed_id'
-                                ] ?? null,
+                        'message' =>
+                            'Image is required.',
 
-                            'product_id' =>
-                                $validated[
-                                    'product_id'
-                                ] ?? null,
+                        'errors' => [
+                            'image' => [
+                                'Image is required for image messages.',
+                            ],
+                        ],
+                    ], 422);
+                }
+
+                $imageData =
+                    $chatImageService
+                        ->store(
+                            $image,
+                            $conversation->id,
+                        );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Message
+            |--------------------------------------------------------------------------
+            */
+
+            $message =
+                DB::transaction(
+                    function () use (
+                        $request,
+                        $validated,
+                        $conversation,
+                        $imageData,
+                    ): Message {
+                        $message =
+                            $conversation
+                                ->messages()
+                                ->create([
+                                    'sender_type' =>
+                                        'customer',
+
+                                    'sender_id' =>
+                                        $request
+                                            ->user()
+                                            ->id,
+
+                                    'type' =>
+                                        $validated[
+                                            'type'
+                                        ],
+
+                                    'message' =>
+                                        $validated[
+                                            'message'
+                                        ] ?? null,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | Image
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'image_path' =>
+                                        $imageData[
+                                            'image_path'
+                                        ] ?? null,
+
+                                    'image_width' =>
+                                        $imageData[
+                                            'image_width'
+                                        ] ?? null,
+
+                                    'image_height' =>
+                                        $imageData[
+                                            'image_height'
+                                        ] ?? null,
+
+                                    'image_size' =>
+                                        $imageData[
+                                            'image_size'
+                                        ] ?? null,
+
+                                    'image_mime_type' =>
+                                        $imageData[
+                                            'image_mime_type'
+                                        ] ?? null,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | Shared Resources
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'feed_id' =>
+                                        $validated[
+                                            'feed_id'
+                                        ] ?? null,
+
+                                    'product_id' =>
+                                        $validated[
+                                            'product_id'
+                                        ] ?? null,
+                                ]);
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Conversation State
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $conversation->update([
+                            'status' =>
+                                'open',
+
+                            'last_message_at' =>
+                                $message->created_at,
+
+                            'user_last_read_at' =>
+                                now(),
                         ]);
 
-                /*
-                |--------------------------------------------------------------------------
-                | Update conversation state
-                |--------------------------------------------------------------------------
-                |
-                | Sending a message means:
-                | - conversation is active/open
-                | - this is now the latest message
-                | - customer has read everything up to this moment
-                |--------------------------------------------------------------------------
-                */
+                        return $message;
+                    },
+                );
+        } catch (Throwable $exception) {
+            /*
+            |--------------------------------------------------------------------------
+            | Cleanup Uploaded Image
+            |--------------------------------------------------------------------------
+            */
 
-                $conversation->update([
-                    'status' => 'open',
+            if (
+                !empty(
+                    $imageData[
+                        'image_path'
+                    ]
+                )
+            ) {
+                $chatImageService
+                    ->delete(
+                        $imageData[
+                            'image_path'
+                        ]
+                    );
+            }
 
-                    'last_message_at' =>
-                        $message->created_at,
+            throw $exception;
+        }
 
-                    'user_last_read_at' =>
-                        now(),
-                ]);
-
-                return $message;
-            },
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | Load Message Relations
+        |--------------------------------------------------------------------------
+        */
 
         $message->load([
             'sender:id,name,display_name,avatar_path',
             'feed',
-            'product',
+            'product.primaryImage',
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Push Notification
+        |--------------------------------------------------------------------------
+        */
+
+        $chatPush->notifyAdmins(
+            $conversation,
+            $message,
+            $request->user(),
+        );
 
         return response()->json([
             'success' => true,
@@ -230,7 +369,7 @@ class ChatController extends Controller
             'data' => [
                 'message' =>
                     new ChatMessageResource(
-                        $message,
+                        $message
                     ),
             ],
         ], 201);
@@ -240,11 +379,11 @@ class ChatController extends Controller
      * Mark the conversation as read by the customer.
      */
     public function markAsRead(
-        Request $request,
+        Request $request
     ): JsonResponse {
         $conversation =
             $this->conversationForUser(
-                $request,
+                $request
             );
 
         $conversation->update([
@@ -255,7 +394,7 @@ class ChatController extends Controller
         $conversation->load([
             'latestMessage.sender',
             'latestMessage.feed',
-            'latestMessage.product',
+            'latestMessage.product.primaryImage',
         ]);
 
         return response()->json([
@@ -267,20 +406,17 @@ class ChatController extends Controller
             'data' => [
                 'conversation' =>
                     new ChatConversationResource(
-                        $conversation,
+                        $conversation
                     ),
             ],
         ]);
     }
 
     /**
-     * Resolve the authenticated customer's support conversation.
-     *
-     * Customers must never be able to access another user's conversation
-     * by supplying a conversation ID.
+     * Resolve authenticated customer's support conversation.
      */
     private function conversationForUser(
-        Request $request,
+        Request $request
     ): Conversation {
         return Conversation::query()
             ->firstOrCreate(
@@ -291,7 +427,8 @@ class ChatController extends Controller
                             ->id,
                 ],
                 [
-                    'status' => 'open',
+                    'status' =>
+                        'open',
 
                     'user_last_read_at' =>
                         now(),

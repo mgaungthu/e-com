@@ -44,6 +44,10 @@ class RolePermissionSeeder extends Seeder
             'customers.update',
             'customers.block',
 
+            // Chat
+            'chat.view',
+            'chat.reply',
+
             'reports.view',
             'reports.export',
 
@@ -90,46 +94,98 @@ class RolePermissionSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Super Admin
+        |--------------------------------------------------------------------------
+        */
+
         $superAdmin->syncPermissions($permissions);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Admin
+        |--------------------------------------------------------------------------
+        */
 
         $admin->syncPermissions($permissions);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Product Manager
+        |--------------------------------------------------------------------------
+        */
+
         $productManager->syncPermissions([
             'dashboard.view',
+
             'categories.view',
             'categories.create',
             'categories.update',
             'categories.delete',
+
             'products.view',
             'products.create',
             'products.update',
             'products.delete',
+
             'feeds.view',
             'feeds.create',
             'feeds.update',
             'feeds.delete',
+
             'inventory.view',
             'inventory.adjust',
+
             'reports.view',
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Order Manager
+        |--------------------------------------------------------------------------
+        */
+
         $orderManager->syncPermissions([
             'dashboard.view',
+
             'orders.view',
             'orders.update',
             'orders.cancel',
             'orders.refund',
+
             'customers.view',
+
             'reports.view',
             'reports.export',
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Support
+        |--------------------------------------------------------------------------
+        */
+
         $customerSupport->syncPermissions([
             'dashboard.view',
+
             'orders.view',
+
             'customers.view',
             'customers.update',
             'customers.block',
+
+            'chat.view',
+            'chat.reply',
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Clear Permission Cache
+        |--------------------------------------------------------------------------
+        */
+
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
     }
 }

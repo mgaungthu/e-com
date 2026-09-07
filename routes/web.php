@@ -15,6 +15,11 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
+
+Route::domain(
+    config('app.admin_domain')
+)->group(function () {
+
 Route::view('/login', 'app')
     ->middleware('guest')
     ->name('login');
@@ -133,3 +138,6 @@ Route::middleware('auth')->group(function () {
 
 Route::view('/{path?}', 'app')
     ->where('path', '.*');
+
+
+    });

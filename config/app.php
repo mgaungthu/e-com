@@ -15,6 +15,10 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'api_domain' => env('API_DOMAIN', 'api.burmeseshaveclub.com'),
+
+    'admin_domain' => env('ADMIN_DOMAIN', 'admin.burmeseshaveclub.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
@@ -100,9 +104,7 @@ return [
     'key' => env('APP_KEY'),
 
     'previous_keys' => [
-        ...array_filter(
-            explode(',', (string) env('APP_PREVIOUS_KEYS', ''))
-        ),
+        ...array_filter(explode(',', (string) env('APP_PREVIOUS_KEYS', ''))),
     ],
 
     /*

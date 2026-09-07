@@ -13,6 +13,11 @@ class Message extends Model
         'sender_id',
         'type',
         'message',
+        'image_path',
+        'image_width',
+        'image_height',
+        'image_size',
+        'image_mime_type',
         'feed_id',
         'product_id',
     ];

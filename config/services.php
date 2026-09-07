@@ -13,6 +13,14 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'expo' => [
+    'push_url' => env(
+        'EXPO_PUSH_URL',
+        'https://exp.host/--/api/v2/push/send'
+        ),
+
+        'access_token' => env('EXPO_ACCESS_TOKEN'),
+    ],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
