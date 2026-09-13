@@ -20,6 +20,15 @@ import { useProducts } from "@/features/products/hooks/useProducts";
 
 type ValidationErrors = Record<string, string[]>;
 
+function toLocalDateTime(value: string | null): string {
+    if (!value) return "";
+
+    const date = new Date(value);
+    const pad = (part: number) => String(part).padStart(2, "0");
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 const initial: FeedValues = {
     caption: "",
     status: "draft",
@@ -68,7 +77,7 @@ export function FeedForm({
             status: feed.status,
             is_active: feed.is_active,
             published_at:
-                feed.published_at?.slice(0, 16) ?? "",
+                toLocalDateTime(feed.published_at),
             media_order: feed.media.map(
                 (media) => media.id,
             ),
@@ -270,7 +279,15 @@ export function FeedForm({
             onSubmit={(event) => {
                 event.preventDefault();
 
-                onSubmit(values);
+                onSubmit({
+                    ...values,
+                    // Preserve seconds and precision when the local date is unchanged.
+                    published_at:
+                        feed?.published_at &&
+                        values.published_at === toLocalDateTime(feed.published_at)
+                            ? feed.published_at
+                            : values.published_at,
+                });
             }}
         >
             <FormErrorAlert

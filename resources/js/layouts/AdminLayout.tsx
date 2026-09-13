@@ -12,6 +12,7 @@ import {
     FileBarChart,
     Settings,
     X,
+    ImageIcon,
 } from "lucide-react";
 
 import { useState } from "react";
@@ -25,6 +26,12 @@ const navigationItems = [
         path: "/dashboard",
         icon: LayoutDashboard,
         permission: "dashboard.view",
+    },
+    {
+        label: "Home Banners",
+        path: "/home-banners",
+        icon: ImageIcon,
+        permission: "home_banners.view",
     },
     {
         label: "Categories",

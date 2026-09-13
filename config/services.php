@@ -13,11 +13,11 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
     'expo' => [
-    'push_url' => env(
-        'EXPO_PUSH_URL',
-        'https://exp.host/--/api/v2/push/send'
-        ),
+        'push_url' => env('EXPO_PUSH_URL', 'https://exp.host/--/api/v2/push/send'),
 
         'access_token' => env('EXPO_ACCESS_TOKEN'),
     ],

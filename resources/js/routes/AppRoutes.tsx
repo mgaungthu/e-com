@@ -4,6 +4,10 @@ import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import CategoryCreatePage from "@/features/categories/pages/CategoryCreatePage";
 import CategoryEditPage from "@/features/categories/pages/CategoryEditPage";
 
+import HomeBannersPage from "@/features/home-banners/pages/HomeBannersPage";
+import HomeBannerCreatePage from "@/features/home-banners/pages/HomeBannerCreatePage";
+import HomeBannerEditPage from "@/features/home-banners/pages/HomeBannerEditPage";
+
 import ProductsPage from "@/features/products/pages/ProductsPage";
 import ProductCreatePage from "@/features/products/pages/ProductCreatePage";
 import ProductEditPage from "@/features/products/pages/ProductEditPage";
@@ -43,7 +47,41 @@ export default function AppRoutes() {
                         element={<Navigate to="/dashboard" replace />}
                     />
 
-                    <Route path="/dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <PermissionRoute permission="dashboard.view">
+                                <DashboardPage />
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/home-banners"
+                        element={
+                            <PermissionRoute permission="home_banners.view">
+                                <HomeBannersPage />
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/home-banners/create"
+                        element={
+                            <PermissionRoute permission="home_banners.create">
+                                <HomeBannerCreatePage />
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/home-banners/:bannerId/edit"
+                        element={
+                            <PermissionRoute permission="home_banners.update">
+                                <HomeBannerEditPage />
+                            </PermissionRoute>
+                        }
+                    />
 
                     <Route path="/categories" element={<CategoriesPage />} />
                     <Route
@@ -80,9 +118,30 @@ export default function AppRoutes() {
                             </PermissionRoute>
                         }
                     />
-                    <Route path="/feeds" element={<PermissionRoute permission="feeds.view"><FeedsPage /></PermissionRoute>} />
-                    <Route path="/feeds/create" element={<PermissionRoute permission="feeds.create"><FeedCreatePage /></PermissionRoute>} />
-                    <Route path="/feeds/:feedId/edit" element={<PermissionRoute permission="feeds.update"><FeedEditPage /></PermissionRoute>} />
+                    <Route
+                        path="/feeds"
+                        element={
+                            <PermissionRoute permission="feeds.view">
+                                <FeedsPage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/feeds/create"
+                        element={
+                            <PermissionRoute permission="feeds.create">
+                                <FeedCreatePage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/feeds/:feedId/edit"
+                        element={
+                            <PermissionRoute permission="feeds.update">
+                                <FeedEditPage />
+                            </PermissionRoute>
+                        }
+                    />
 
                     <Route
                         path="/inventory"
@@ -116,9 +175,30 @@ export default function AppRoutes() {
                             </PermissionRoute>
                         }
                     />
-                    <Route path="/access" element={<PermissionRoute permission="staff.view"><AccessManagementPage /></PermissionRoute>} />
-                    <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
-                    <Route path="/settings" element={<PermissionRoute permission="settings.manage"><SettingsPage /></PermissionRoute>} />
+                    <Route
+                        path="/access"
+                        element={
+                            <PermissionRoute permission="staff.view">
+                                <AccessManagementPage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/reports"
+                        element={
+                            <PermissionRoute permission="reports.view">
+                                <ReportsPage />
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/settings"
+                        element={
+                            <PermissionRoute permission="settings.manage">
+                                <SettingsPage />
+                            </PermissionRoute>
+                        }
+                    />
                 </Route>
             </Route>
 

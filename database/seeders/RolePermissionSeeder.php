@@ -27,6 +27,17 @@ class RolePermissionSeeder extends Seeder
             'products.update',
             'products.delete',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Home Banners
+            |--------------------------------------------------------------------------
+            */
+
+            'home_banners.view',
+            'home_banners.create',
+            'home_banners.update',
+            'home_banners.delete',
+
             'feeds.view',
             'feeds.create',
             'feeds.update',
@@ -44,7 +55,12 @@ class RolePermissionSeeder extends Seeder
             'customers.update',
             'customers.block',
 
-            // Chat
+            /*
+            |--------------------------------------------------------------------------
+            | Chat
+            |--------------------------------------------------------------------------
+            */
+
             'chat.view',
             'chat.reply',
 
@@ -100,7 +116,9 @@ class RolePermissionSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
 
-        $superAdmin->syncPermissions($permissions);
+        $superAdmin->syncPermissions(
+            $permissions
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -108,7 +126,9 @@ class RolePermissionSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
 
-        $admin->syncPermissions($permissions);
+        $admin->syncPermissions(
+            $permissions
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -128,6 +148,14 @@ class RolePermissionSeeder extends Seeder
             'products.create',
             'products.update',
             'products.delete',
+
+            /*
+             * Product managers can manage Home carousel merchandising.
+             */
+            'home_banners.view',
+            'home_banners.create',
+            'home_banners.update',
+            'home_banners.delete',
 
             'feeds.view',
             'feeds.create',

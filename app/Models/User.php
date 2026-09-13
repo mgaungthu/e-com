@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -23,6 +24,8 @@ use Spatie\Permission\Traits\HasRoles;
     'phone',
     'password',
     'avatar_path',
+    'google_id',
+    'google_avatar_url',
     'status',
     'last_login_at',
     'last_login_ip',
@@ -170,5 +173,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function pushDevices(): HasMany
     {
         return $this->hasMany(PushDevice::class);
+    }
+
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if ($this->avatar_path) {
+            return Storage::disk('public')
+                ->url($this->avatar_path);
+        }
+
+        return $this->google_avatar_url;
     }
 }

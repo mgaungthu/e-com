@@ -19,6 +19,8 @@ return [
 
     'admin_domain' => env('ADMIN_DOMAIN', 'admin.burmeseshaveclub.com'),
 
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
