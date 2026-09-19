@@ -13,58 +13,95 @@ class StoreChatMessageRequest extends FormRequest
     }
 
     public function rules(): array
-        {
-            return [
-                'type' => [
-                    'required',
-                    'string',
-                    Rule::in([
-                        'text',
-                        'image',
-                        'feed',
-                        'product',
-                    ]),
-                ],
+    {
+        return [
+            /*
+            |--------------------------------------------------------------------------
+            | Message Type
+            |--------------------------------------------------------------------------
+            */
 
-                'message' => [
-                    'nullable',
-                    'string',
-                    'max:5000',
-                    'required_if:type,text',
-                ],
-
-                'image' => [
-                    'nullable',
-                    'file',
+            'type' => [
+                'required',
+                'string',
+                Rule::in([
+                    'text',
                     'image',
-                    'mimes:jpg,jpeg,png,webp',
-                    'max:8192',
-                    'required_if:type,image',
-                ],
+                    'feed',
+                    'product',
+                ]),
+            ],
 
-                'feed_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:feeds,id',
-                    'required_if:type,feed',
-                ],
+            /*
+            |--------------------------------------------------------------------------
+            | Text / Image Caption
+            |--------------------------------------------------------------------------
+            |
+            | Required for text messages.
+            | Optional for image messages and acts as the image caption.
+            |
+            */
 
-                'product_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:products,id',
-                    'required_if:type,product',
-                ],
-            ];
-        }
+            'message' => [
+                'nullable',
+                'string',
+                'max:5000',
+                'required_if:type,text',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Image
+            |--------------------------------------------------------------------------
+            */
+
+            'image' => [
+                'nullable',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:8192',
+                'required_if:type,image',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Feed
+            |--------------------------------------------------------------------------
+            */
+
+            'feed_id' => [
+                'nullable',
+                'integer',
+                'exists:feeds,id',
+                'required_if:type,feed',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Product
+            |--------------------------------------------------------------------------
+            */
+
+            'product_id' => [
+                'nullable',
+                'integer',
+                'exists:products,id',
+                'required_if:type,product',
+            ],
+        ];
+    }
 
     protected function prepareForValidation(): void
     {
         if ($this->has('message')) {
+            $message =
+                $this->input('message');
+
             $this->merge([
-                'message' => is_string($this->input('message'))
-                    ? trim($this->input('message'))
-                    : $this->input('message'),
+                'message' => is_string($message)
+                        ? trim($message)
+                        : $message,
             ]);
         }
     }
@@ -72,29 +109,61 @@ class StoreChatMessageRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type.required' =>
-                'Message type is required.',
+            /*
+            |--------------------------------------------------------------------------
+            | Type
+            |--------------------------------------------------------------------------
+            */
 
-            'type.in' =>
-                'Message type must be text, feed, or product.',
+            'type.required' => 'Message type is required.',
 
-            'message.required' =>
-                'Message text is required.',
+            'type.in' => 'Message type must be text, image, feed, or product.',
 
-            'message.max' =>
-                'Message may not be greater than 5000 characters.',
+            /*
+            |--------------------------------------------------------------------------
+            | Message
+            |--------------------------------------------------------------------------
+            */
 
-            'feed_id.required' =>
-                'A feed post is required for feed messages.',
+            'message.required_if' => 'Message text is required for text messages.',
 
-            'feed_id.exists' =>
-                'The selected feed post does not exist.',
+            'message.string' => 'Message must be valid text.',
 
-            'product_id.required' =>
-                'A product is required for product messages.',
+            'message.max' => 'Message may not be greater than 5000 characters.',
 
-            'product_id.exists' =>
-                'The selected product does not exist.',
+            /*
+            |--------------------------------------------------------------------------
+            | Image
+            |--------------------------------------------------------------------------
+            */
+
+            'image.required_if' => 'An image is required for image messages.',
+
+            'image.image' => 'The selected file must be an image.',
+
+            'image.mimes' => 'The image must be a JPG, JPEG, PNG, or WEBP file.',
+
+            'image.max' => 'The image may not be greater than 8 MB.',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Feed
+            |--------------------------------------------------------------------------
+            */
+
+            'feed_id.required_if' => 'A feed post is required for feed messages.',
+
+            'feed_id.exists' => 'The selected feed post does not exist.',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Product
+            |--------------------------------------------------------------------------
+            */
+
+            'product_id.required_if' => 'A product is required for product messages.',
+
+            'product_id.exists' => 'The selected product does not exist.',
         ];
     }
 }

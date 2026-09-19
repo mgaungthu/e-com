@@ -25,6 +25,12 @@ class OrderController extends Controller
 {
     public function __construct(private readonly CheckoutCalculator $checkoutCalculator, private readonly OrderInventoryService $orderInventoryService) {}
 
+    /*
+    |--------------------------------------------------------------------------
+    | Index
+    |--------------------------------------------------------------------------
+    */
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -40,11 +46,18 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
+
             'data' => [
                 'orders' => $orders,
             ],
         ]);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Show
+    |--------------------------------------------------------------------------
+    */
 
     public function show(Request $request, Order $order): JsonResponse
     {
@@ -61,15 +74,23 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
+
             'data' => [
                 'order' => $order,
             ],
         ]);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Store
+    |--------------------------------------------------------------------------
+    */
+
     public function store(StoreOrderRequest $request): JsonResponse
     {
         $validated = $request->validated();
+
         $user = $request->user();
 
         /*
@@ -149,26 +170,56 @@ class OrderController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Store Payment Proof
+        | Payment Configuration
         |--------------------------------------------------------------------------
         */
 
-        $proofPath = $request
-            ->file('payment_proof')
-            ->store('payment-proofs', 'public');
+        $isCashOnDelivery =
+            $paymentMethod->type === 'cod';
+
+        $requiresPaymentProof =
+            (bool) $paymentMethod->requires_proof;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Store Payment Proof
+        |--------------------------------------------------------------------------
+        |
+        | The payment method configuration controls whether a proof should
+        | exist.
+        |
+        | COD:
+        |   type = cod
+        |   requires_proof = false
+        |
+        | E-Wallet:
+        |   type = ewallet
+        |   requires_proof = true
+        |
+        | StoreOrderRequest is responsible for requiring the proof when the
+        | selected payment method has requires_proof = true.
+        |--------------------------------------------------------------------------
+        */
+
+        $proofPath = null;
+
+        if (
+            $requiresPaymentProof
+            && $request->hasFile('payment_proof')
+        ) {
+            $proofPath = $request
+                ->file('payment_proof')
+                ->store('payment-proofs', 'public');
+        }
 
         /*
         |--------------------------------------------------------------------------
         | Create Order Transaction
         |--------------------------------------------------------------------------
-        |
-        | Important:
-        | Only delete payment proof when the actual order transaction fails.
-        |--------------------------------------------------------------------------
         */
 
         try {
-            $order = DB::transaction(function () use ($user, $cart, $shippingAddress, $billingAddress, $paymentMethod, $validated, $proofPath, ) {
+            $order = DB::transaction(function () use ($user, $cart, $shippingAddress, $billingAddress, $paymentMethod, $validated, $proofPath) {
                 /*
                 |--------------------------------------------------------------------------
                 | Lock Cart
@@ -203,8 +254,9 @@ class OrderController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
-                $calculation = $this->checkoutCalculator
-                    ->calculate($lockedCart->items);
+                $calculation = $this
+                    ->checkoutCalculator
+                    ->calculate($lockedCart->items, $shippingAddress);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -221,6 +273,16 @@ class OrderController extends Controller
 
                     'status' => OrderStatus::Pending,
 
+                    /*
+                     * COD:
+                     * Payment has not yet been collected.
+                     *
+                     * E-Wallet:
+                     * Payment proof is waiting for verification.
+                     *
+                     * The current order-level PaymentStatus uses Pending
+                     * for both cases.
+                     */
                     'payment_status' => PaymentStatus::Pending,
 
                     'payment_method' => $paymentMethod->code,
@@ -245,12 +307,14 @@ class OrderController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
-                foreach ($calculation['lines'] as $line) {
-                    $product =
-                        $line['cart_item']->product;
-
+                foreach (
+                    $calculation['lines'] as $line
+                ) {
                     $cartItem =
                         $line['cart_item'];
+
+                    $product =
+                        $cartItem->product;
 
                     OrderItem::query()->create([
                         'order_id' => $order->id,
@@ -280,7 +344,18 @@ class OrderController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | Create Payment Submission
+                | Create Order Payment
+                |--------------------------------------------------------------------------
+                |
+                | COD:
+                |   status = pending
+                |   proof_image_path = null
+                |   submitted_at = null
+                |
+                | E-Wallet:
+                |   status = submitted
+                |   proof_image_path = uploaded proof
+                |   submitted_at = now()
                 |--------------------------------------------------------------------------
                 */
 
@@ -300,9 +375,13 @@ class OrderController extends Controller
 
                     'proof_image_path' => $proofPath,
 
-                    'status' => 'submitted',
+                    'status' => $paymentMethod->type === 'cod'
+                            ? 'pending'
+                            : 'submitted',
 
-                    'submitted_at' => now(),
+                    'submitted_at' => $paymentMethod->type === 'cod'
+                            ? null
+                            : now(),
                 ]);
 
                 /*
@@ -320,21 +399,27 @@ class OrderController extends Controller
         } catch (\Throwable $exception) {
             /*
             |--------------------------------------------------------------------------
-            | Transaction failed.
+            | Transaction Failed
+            |--------------------------------------------------------------------------
             |
-            | The order does not exist, so remove the uploaded payment proof.
+            | If a proof was uploaded before the transaction and the order
+            | transaction failed, remove the orphaned proof file.
+            |
+            | COD normally has $proofPath === null.
             |--------------------------------------------------------------------------
             */
 
-            Storage::disk('public')
-                ->delete($proofPath);
+            if ($proofPath !== null) {
+                Storage::disk('public')
+                    ->delete($proofPath);
+            }
 
             throw $exception;
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Transaction is now committed successfully
+        | Transaction Committed
         |--------------------------------------------------------------------------
         */
 
@@ -349,8 +434,8 @@ class OrderController extends Controller
         | Dispatch Order Confirmation Event
         |--------------------------------------------------------------------------
         |
-        | Email / queue failure should NOT make the customer think the order
-        | itself failed, because the order is already committed in the database.
+        | Email / queue failures must not make the customer think the order
+        | failed because the database transaction has already committed.
         |--------------------------------------------------------------------------
         */
 
@@ -366,10 +451,14 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        $message = $isCashOnDelivery
+            ? 'Order placed successfully. Payment will be collected on delivery.'
+            : 'Order submitted successfully and is awaiting payment verification.';
+
         return response()->json([
             'success' => true,
 
-            'message' => 'Order submitted successfully and is awaiting payment verification.',
+            'message' => $message,
 
             'data' => [
                 'order' => $order,
@@ -377,28 +466,55 @@ class OrderController extends Controller
         ], 201);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Address Snapshot
+    |--------------------------------------------------------------------------
+    */
+
     private function addressSnapshot(Address $address): array
     {
         return [
             'id' => $address->id,
+
+            'location_id' => $address->location_id,
+
             'type' => $address->type,
+
             'label' => $address->label,
+
             'recipient_name' => $address->recipient_name,
+
             'phone' => $address->phone,
+
             'alternate_phone' => $address->alternate_phone,
+
             'address_line_one' => $address->address_line_one,
+
             'address_line_two' => $address->address_line_two,
+
             'building' => $address->building,
+
             'floor' => $address->floor,
+
             'unit' => $address->unit,
+
             'landmark' => $address->landmark,
+
             'township' => $address->township,
+
             'city' => $address->city,
+
             'state' => $address->state,
+
             'postal_code' => $address->postal_code,
+
             'country_code' => $address->country_code,
+
             'latitude' => $address->latitude,
+
             'longitude' => $address->longitude,
+
             'delivery_instruction' => $address->delivery_instruction,
         ];
     }

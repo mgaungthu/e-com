@@ -21,12 +21,9 @@ class AdminChatController extends Controller
     /**
      * Get all customer conversations.
      */
-    public function index(
-        Request $request
-    ) {
-        Gate::authorize(
-            'chat.view'
-        );
+    public function index(Request $request)
+    {
+        Gate::authorize('chat.view');
 
         $validated =
             $request->validate([
@@ -58,38 +55,74 @@ class AdminChatController extends Controller
                 'per_page'
             ] ?? 20;
 
+        $adminId =
+            (int) $request
+                ->user()
+                ->id;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversations Only
+        |--------------------------------------------------------------------------
+        |
+        | Admin, Super Admin, Product Manager and other staff accounts must
+        | never appear inside the customer support inbox.
+        |
+        */
+
         $conversations =
             Conversation::query()
+                ->whereHas('user', function ($userQuery) {
+                    $userQuery->where('role', 'customer');
+                })
+
+                /*
+                |--------------------------------------------------------------------------
+                | Current Admin Star State
+                |--------------------------------------------------------------------------
+                |
+                | Each admin has their own star state.
+                |
+                */
+
+                ->withExists([
+                    'stars as is_starred' =>
+                        fn ($query) =>
+                            $query->where(
+                                'user_id',
+                                $adminId
+                            ),
+                ])
+
                 ->with([
                     'user',
                     'latestMessage.sender',
                     'latestMessage.feed',
                     'latestMessage.product.primaryImage',
                 ])
+
                 ->when(
                     $validated[
                         'search'
                     ] ?? null,
-
                     function (
                         $query,
                         string $search
                     ) {
                         $query->whereHas(
                             'user',
-
                             function (
                                 $userQuery
-                            ) use (
-                                $search
-                            ) {
+                            ) use ($search) {
                                 $userQuery
+                                    ->where(
+                                        'role',
+                                        'customer'
+                                    )
                                     ->where(
                                         function (
                                             $query
-                                        ) use (
-                                            $search
-                                        ) {
+                                        ) use ($search) {
                                             $query
                                                 ->where(
                                                     'name',
@@ -112,11 +145,11 @@ class AdminChatController extends Controller
                         );
                     }
                 )
+
                 ->when(
                     $validated[
                         'status'
                     ] ?? null,
-
                     fn (
                         $query,
                         string $status
@@ -126,6 +159,7 @@ class AdminChatController extends Controller
                             $status
                         )
                 )
+
                 ->orderByRaw(
                     'CASE
                         WHEN last_message_at IS NULL
@@ -133,12 +167,15 @@ class AdminChatController extends Controller
                         ELSE 0
                     END'
                 )
+
                 ->orderByDesc(
                     'last_message_at'
                 )
+
                 ->orderByDesc(
                     'id'
                 )
+
                 ->paginate(
                     $perPage
                 );
@@ -150,17 +187,40 @@ class AdminChatController extends Controller
 
     /**
      * Get messages from a specific customer conversation.
+     *
+     * Supports searching text messages and image captions
+     * through the "message" column.
      */
     public function messages(
         Request $request,
-        Conversation $conversation,
+        Conversation $conversation
     ): JsonResponse {
-        Gate::authorize(
-            'chat.view'
+        Gate::authorize('chat.view');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversation Guard
+        |--------------------------------------------------------------------------
+        */
+
+        $this->ensureCustomerConversation(
+            $conversation
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
 
         $validated =
             $request->validate([
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:255',
+                ],
+
                 'per_page' => [
                     'nullable',
                     'integer',
@@ -174,9 +234,30 @@ class AdminChatController extends Controller
                 'per_page'
             ] ?? 50;
 
+        $search =
+            isset(
+                $validated['search']
+            )
+                ? trim(
+                    $validated['search']
+                )
+                : null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer
+        |--------------------------------------------------------------------------
+        */
+
         $conversation->load([
             'user',
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Messages
+        |--------------------------------------------------------------------------
+        */
 
         $messages =
             $conversation
@@ -186,12 +267,38 @@ class AdminChatController extends Controller
                     'feed',
                     'product.primaryImage',
                 ])
+
+                /*
+                |--------------------------------------------------------------------------
+                | Search Message Text / Image Caption
+                |--------------------------------------------------------------------------
+                */
+
+                ->when(
+                    filled($search),
+                    function ($query) use ($search) {
+                        $query->where(
+                            'message',
+                            'like',
+                            "%{$search}%"
+                        );
+                    }
+                )
+
+                /*
+                |--------------------------------------------------------------------------
+                | Latest First
+                |--------------------------------------------------------------------------
+                */
+
                 ->orderByDesc(
                     'created_at'
                 )
+
                 ->orderByDesc(
                     'id'
                 )
+
                 ->paginate(
                     $perPage
                 );
@@ -268,11 +375,37 @@ class AdminChatController extends Controller
         Request $request,
         Conversation $conversation,
         ChatPushNotificationService $chatPush,
-        ChatImageService $chatImageService,
+        ChatImageService $chatImageService
     ): JsonResponse {
-        Gate::authorize(
-            'chat.reply'
+        Gate::authorize('chat.reply');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversation Guard
+        |--------------------------------------------------------------------------
+        */
+
+        $this->ensureCustomerConversation(
+            $conversation
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize Message
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->has('message')) {
+            $message =
+                $request->input('message');
+
+            $request->merge([
+                'message' =>
+                    is_string($message)
+                        ? trim($message)
+                        : $message,
+            ]);
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -293,6 +426,10 @@ class AdminChatController extends Controller
                     ]),
                 ],
 
+                /*
+                 * Required for text messages.
+                 * Optional caption for image messages.
+                 */
                 'message' => [
                     'nullable',
                     'string',
@@ -327,12 +464,9 @@ class AdminChatController extends Controller
         */
 
         if (
-            $validated['type'] ===
-                'text'
+            $validated['type'] === 'text'
             && blank(
-                $validated[
-                    'message'
-                ] ?? null
+                $validated['message'] ?? null
             )
         ) {
             return response()->json([
@@ -348,11 +482,8 @@ class AdminChatController extends Controller
         }
 
         if (
-            $validated['type'] ===
-                'image'
-            && !$request->hasFile(
-                'image'
-            )
+            $validated['type'] === 'image'
+            && ! $request->hasFile('image')
         ) {
             return response()->json([
                 'message' =>
@@ -367,12 +498,9 @@ class AdminChatController extends Controller
         }
 
         if (
-            $validated['type'] ===
-                'feed'
+            $validated['type'] === 'feed'
             && empty(
-                $validated[
-                    'feed_id'
-                ]
+                $validated['feed_id']
             )
         ) {
             return response()->json([
@@ -388,12 +516,9 @@ class AdminChatController extends Controller
         }
 
         if (
-            $validated['type'] ===
-                'product'
+            $validated['type'] === 'product'
             && empty(
-                $validated[
-                    'product_id'
-                ]
+                $validated['product_id']
             )
         ) {
             return response()->json([
@@ -415,8 +540,7 @@ class AdminChatController extends Controller
         */
 
         if (
-            $validated['type'] ===
-            'product'
+            $validated['type'] === 'product'
         ) {
             Product::query()
                 ->where(
@@ -440,15 +564,12 @@ class AdminChatController extends Controller
 
         try {
             if (
-                $validated['type'] ===
-                'image'
+                $validated['type'] === 'image'
             ) {
                 $image =
-                    $request->file(
-                        'image'
-                    );
+                    $request->file('image');
 
-                if (!$image) {
+                if (! $image) {
                     return response()->json([
                         'message' =>
                             'Image is required.',
@@ -465,7 +586,7 @@ class AdminChatController extends Controller
                     $chatImageService
                         ->store(
                             $image,
-                            $conversation->id,
+                            $conversation->id
                         );
             }
 
@@ -481,7 +602,7 @@ class AdminChatController extends Controller
                         $request,
                         $conversation,
                         $validated,
-                        $imageData,
+                        $imageData
                     ) {
                         $message =
                             $conversation
@@ -500,6 +621,9 @@ class AdminChatController extends Controller
                                             'type'
                                         ],
 
+                                    /*
+                                     * Text content or image caption.
+                                     */
                                     'message' =>
                                         $validated[
                                             'message'
@@ -572,7 +696,7 @@ class AdminChatController extends Controller
                         ]);
 
                         return $message;
-                    },
+                    }
                 );
         } catch (Throwable $exception) {
             /*
@@ -582,7 +706,7 @@ class AdminChatController extends Controller
             */
 
             if (
-                !empty(
+                ! empty(
                     $imageData[
                         'image_path'
                     ]
@@ -629,7 +753,7 @@ class AdminChatController extends Controller
 
         $chatPush->notifyCustomer(
             $conversation,
-            $message,
+            $message
         );
 
         return response()->json([
@@ -649,8 +773,16 @@ class AdminChatController extends Controller
     public function markAsRead(
         Conversation $conversation
     ): JsonResponse {
-        Gate::authorize(
-            'chat.view'
+        Gate::authorize('chat.view');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversation Guard
+        |--------------------------------------------------------------------------
+        */
+
+        $this->ensureCustomerConversation(
+            $conversation
         );
 
         $conversation->update([
@@ -674,5 +806,123 @@ class AdminChatController extends Controller
                         ?->toISOString(),
             ],
         ]);
+    }
+
+    /**
+     * Star a customer conversation for the authenticated admin.
+     */
+    public function star(
+        Request $request,
+        Conversation $conversation
+    ): JsonResponse {
+        Gate::authorize('chat.view');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversation Guard
+        |--------------------------------------------------------------------------
+        */
+
+        $this->ensureCustomerConversation(
+            $conversation
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Store Star
+        |--------------------------------------------------------------------------
+        */
+
+        $conversation
+            ->stars()
+            ->firstOrCreate([
+                'user_id' =>
+                    $request
+                        ->user()
+                        ->id,
+            ]);
+
+        return response()->json([
+            'message' =>
+                'Conversation starred successfully.',
+
+            'data' => [
+                'id' =>
+                    $conversation->id,
+
+                'is_starred' =>
+                    true,
+            ],
+        ]);
+    }
+
+    /**
+     * Remove the authenticated admin's star
+     * from a customer conversation.
+     */
+    public function unstar(
+        Request $request,
+        Conversation $conversation
+    ): JsonResponse {
+        Gate::authorize('chat.view');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Conversation Guard
+        |--------------------------------------------------------------------------
+        */
+
+        $this->ensureCustomerConversation(
+            $conversation
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Delete Star
+        |--------------------------------------------------------------------------
+        */
+
+        $conversation
+            ->stars()
+            ->where(
+                'user_id',
+                $request
+                    ->user()
+                    ->id
+            )
+            ->delete();
+
+        return response()->json([
+            'message' =>
+                'Conversation unstarred successfully.',
+
+            'data' => [
+                'id' =>
+                    $conversation->id,
+
+                'is_starred' =>
+                    false,
+            ],
+        ]);
+    }
+
+    /**
+     * Ensure admin support endpoints are only used
+     * with customer conversations.
+     */
+    private function ensureCustomerConversation(
+        Conversation $conversation
+    ): void {
+        $conversation->loadMissing(
+            'user'
+        );
+
+        abort_unless(
+            $conversation->user
+                && $conversation
+                    ->user
+                    ->role === 'customer',
+            404
+        );
     }
 }

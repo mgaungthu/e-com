@@ -1,22 +1,28 @@
 import {
     Boxes,
+    CreditCard,
+    FileBarChart,
+    ImageIcon,
+    Images,
     LayoutDashboard,
     LogOut,
-    Package,
-    Images,
+    MapPin,
     Menu,
+    Package,
+    Settings,
+    ShieldCheck,
     ShoppingCart,
     Tags,
     Users,
-    ShieldCheck,
-    FileBarChart,
-    Settings,
     X,
-    ImageIcon,
 } from "lucide-react";
 
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+    NavLink,
+    Outlet,
+    useNavigate,
+} from "react-router-dom";
 
 import { useAuthStore } from "@/store/authStore";
 
@@ -64,6 +70,18 @@ const navigationItems = [
         permission: "orders.view",
     },
     {
+        label: "Payment Methods",
+        path: "/payment-methods",
+        icon: CreditCard,
+        permission: "payment_methods.view",
+    },
+    {
+        label: "Locations",
+        path: "/locations",
+        icon: MapPin,
+        permission: "locations.view",
+    },
+    {
         label: "Customers",
         path: "/customers",
         icon: Users,
@@ -90,23 +108,41 @@ const navigationItems = [
 ];
 
 export default function AdminLayout() {
-    const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
-    const navigate = useNavigate();
+    const [
+        isMobileNavigationOpen,
+        setIsMobileNavigationOpen,
+    ] = useState(false);
 
-    const user = useAuthStore((state) => state.user);
+    const navigate =
+        useNavigate();
 
-    const logout = useAuthStore((state) => state.logout);
+    const user =
+        useAuthStore(
+            (state) =>
+                state.user,
+        );
+
+    const logout =
+        useAuthStore(
+            (state) =>
+                state.logout,
+        );
 
     async function handleLogout() {
         await logout();
 
-        navigate("/login", {
-            replace: true,
-        });
+        navigate(
+            "/login",
+            {
+                replace: true,
+            },
+        );
     }
 
     function closeMobileNavigation() {
-        setIsMobileNavigationOpen(false);
+        setIsMobileNavigationOpen(
+            false,
+        );
     }
 
     return (
@@ -115,7 +151,9 @@ export default function AdminLayout() {
                 <button
                     type="button"
                     aria-label="Close navigation menu"
-                    onClick={closeMobileNavigation}
+                    onClick={
+                        closeMobileNavigation
+                    }
                     className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden"
                 />
             ) : null}
@@ -123,6 +161,7 @@ export default function AdminLayout() {
             <aside
                 className={[
                     "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-950 text-white transition-transform duration-200 lg:z-20 lg:translate-x-0",
+
                     isMobileNavigationOpen
                         ? "translate-x-0"
                         : "-translate-x-full",
@@ -130,15 +169,23 @@ export default function AdminLayout() {
             >
                 <div className="border-b border-slate-800 px-6 py-5">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-xl font-bold">E-commerce</h1>
+                        <h1 className="text-xl font-bold">
+                            E-commerce
+                        </h1>
 
                         <button
                             type="button"
                             aria-label="Close navigation menu"
-                            onClick={closeMobileNavigation}
+                            onClick={
+                                closeMobileNavigation
+                            }
                             className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white lg:hidden"
                         >
-                            <X size={18} />
+                            <X
+                                size={
+                                    18
+                                }
+                            />
                         </button>
                     </div>
 
@@ -149,31 +196,59 @@ export default function AdminLayout() {
 
                 <nav className="flex-1 space-y-1 overflow-y-auto p-4">
                     {navigationItems
-                        .filter((item) =>
-                            user?.permissions.includes(item.permission),
+                        .filter(
+                            (
+                                item,
+                            ) =>
+                                user?.permissions.includes(
+                                    item.permission,
+                                ),
                         )
-                        .map((item) => {
-                            const Icon = item.icon;
+                        .map(
+                            (
+                                item,
+                            ) => {
+                                const Icon =
+                                    item.icon;
 
-                            return (
-                                <NavLink
-                                    key={item.path}
-                                    to={item.path}
-                                    onClick={closeMobileNavigation}
-                                    className={({ isActive }) =>
-                                        [
-                                            "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition",
-                                            isActive
-                                                ? "bg-blue-600 text-white"
-                                                : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                                        ].join(" ")
-                                    }
-                                >
-                                    <Icon size={18} />
-                                    {item.label}
-                                </NavLink>
-                            );
-                        })}
+                                return (
+                                    <NavLink
+                                        key={
+                                            item.path
+                                        }
+                                        to={
+                                            item.path
+                                        }
+                                        onClick={
+                                            closeMobileNavigation
+                                        }
+                                        className={({
+                                            isActive,
+                                        }) =>
+                                            [
+                                                "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition",
+
+                                                isActive
+                                                    ? "bg-blue-600 text-white"
+                                                    : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                                            ].join(
+                                                " ",
+                                            )
+                                        }
+                                    >
+                                        <Icon
+                                            size={
+                                                18
+                                            }
+                                        />
+
+                                        {
+                                            item.label
+                                        }
+                                    </NavLink>
+                                );
+                            },
+                        )}
                 </nav>
             </aside>
 
@@ -183,12 +258,23 @@ export default function AdminLayout() {
                         <button
                             type="button"
                             aria-label="Open navigation menu"
-                            aria-expanded={isMobileNavigationOpen}
-                            onClick={() => setIsMobileNavigationOpen(true)}
+                            aria-expanded={
+                                isMobileNavigationOpen
+                            }
+                            onClick={() =>
+                                setIsMobileNavigationOpen(
+                                    true,
+                                )
+                            }
                             className="rounded-lg border border-slate-200 p-2 text-slate-700 transition hover:bg-slate-50 lg:hidden"
                         >
-                            <Menu size={20} />
+                            <Menu
+                                size={
+                                    20
+                                }
+                            />
                         </button>
+
                         <p className="text-sm font-medium text-slate-800">
                             Admin Panel
                         </p>
@@ -197,21 +283,34 @@ export default function AdminLayout() {
                     <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                         <div className="hidden text-right sm:block">
                             <p className="text-sm font-semibold text-slate-900">
-                                {user?.name}
+                                {
+                                    user?.name
+                                }
                             </p>
 
                             <p className="text-xs text-slate-500">
-                                {user?.roles.join(", ")}
+                                {user?.roles.join(
+                                    ", ",
+                                )}
                             </p>
                         </div>
 
                         <button
                             type="button"
-                            onClick={handleLogout}
+                            onClick={
+                                handleLogout
+                            }
                             className="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm text-slate-700 transition hover:bg-slate-50 sm:px-3"
                         >
-                            <LogOut size={16} />
-                            <span className="hidden sm:inline">Logout</span>
+                            <LogOut
+                                size={
+                                    16
+                                }
+                            />
+
+                            <span className="hidden sm:inline">
+                                Logout
+                            </span>
                         </button>
                     </div>
                 </header>

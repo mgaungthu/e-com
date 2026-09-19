@@ -10,10 +10,13 @@ class PaymentMethod extends Model
     protected $fillable = [
         'name',
         'code',
+        'type',
+        'logo_path',
         'account_name',
         'account_number',
         'qr_image_path',
         'instructions',
+        'requires_proof',
         'is_active',
         'sort_order',
     ];
@@ -21,6 +24,7 @@ class PaymentMethod extends Model
     protected function casts(): array
     {
         return [
+            'requires_proof' => 'boolean',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];

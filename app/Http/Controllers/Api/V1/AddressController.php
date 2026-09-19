@@ -16,6 +16,7 @@ class AddressController extends Controller
     public function index(Request $request): JsonResponse
     {
         $addresses = Address::query()
+            ->with('location')
             ->where('user_id', $request->user()->id)
             ->orderByDesc('is_default_shipping')
             ->orderByDesc('is_default_billing')
@@ -75,6 +76,8 @@ class AddressController extends Controller
             ]);
         });
 
+        $address->load('location');
+
         return response()->json([
             'success' => true,
             'message' => 'Address created successfully.',
@@ -87,6 +90,8 @@ class AddressController extends Controller
     public function show(Request $request, Address $address): JsonResponse
     {
         $this->ensureAddressBelongsToUser($request, $address);
+
+        $address->load('location');
 
         return response()->json([
             'success' => true,
@@ -126,11 +131,14 @@ class AddressController extends Controller
             $address->update($validated);
         });
 
+        $address = $address->fresh();
+        $address->load('location');
+
         return response()->json([
             'success' => true,
             'message' => 'Address updated successfully.',
             'data' => [
-                'address' => new AddressResource($address->fresh()),
+                'address' => new AddressResource($address),
             ],
         ]);
     }
@@ -192,11 +200,14 @@ class AddressController extends Controller
             ]);
         });
 
+        $address = $address->fresh();
+        $address->load('location');
+
         return response()->json([
             'success' => true,
             'message' => 'Default shipping address updated successfully.',
             'data' => [
-                'address' => new AddressResource($address->fresh()),
+                'address' => new AddressResource($address),
             ],
         ]);
     }
@@ -217,11 +228,14 @@ class AddressController extends Controller
             ]);
         });
 
+        $address = $address->fresh();
+        $address->load('location');
+
         return response()->json([
             'success' => true,
             'message' => 'Default billing address updated successfully.',
             'data' => [
-                'address' => new AddressResource($address->fresh()),
+                'address' => new AddressResource($address),
             ],
         ]);
     }

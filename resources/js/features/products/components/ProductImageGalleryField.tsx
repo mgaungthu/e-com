@@ -174,16 +174,23 @@ function ImageCard({
 }: ImageCardProps) {
     return (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="relative aspect-square bg-slate-100">
+            <div className="relative aspect-[4/3] bg-slate-100">
                 {src ? (
-                    <img src={src} alt={alt} className="h-full w-full object-cover" />
+                    <img
+                        src={src}
+                        alt={alt}
+                        className="h-full w-full object-cover"
+                    />
                 ) : null}
+
                 <div className="absolute left-2 top-2 flex gap-2">
                     {isPrimary ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold text-amber-950 shadow-sm">
-                            <Star size={12} fill="currentColor" /> Primary
+                            <Star size={12} fill="currentColor" />
+                            Primary
                         </span>
                     ) : null}
+
                     {label ? (
                         <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
                             {label}
@@ -191,6 +198,7 @@ function ImageCard({
                     ) : null}
                 </div>
             </div>
+
             <div className="flex items-center justify-between gap-2 p-3">
                 <div className="flex gap-1">
                     <button
@@ -202,6 +210,7 @@ function ImageCard({
                     >
                         <ArrowLeft size={14} />
                     </button>
+
                     <button
                         type="button"
                         disabled={disabled || !canMoveRight}
@@ -212,6 +221,7 @@ function ImageCard({
                         <ArrowRight size={14} />
                     </button>
                 </div>
+
                 <div className="flex gap-1">
                     {!isPrimary ? (
                         <button
@@ -224,6 +234,7 @@ function ImageCard({
                             <Star size={14} />
                         </button>
                     ) : null}
+
                     <button
                         type="button"
                         disabled={disabled}

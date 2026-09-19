@@ -17,10 +17,22 @@ class RolePermissionSeeder extends Seeder
         $permissions = [
             'dashboard.view',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Categories
+            |--------------------------------------------------------------------------
+            */
+
             'categories.view',
             'categories.create',
             'categories.update',
             'categories.delete',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Products
+            |--------------------------------------------------------------------------
+            */
 
             'products.view',
             'products.create',
@@ -38,18 +50,63 @@ class RolePermissionSeeder extends Seeder
             'home_banners.update',
             'home_banners.delete',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Feeds
+            |--------------------------------------------------------------------------
+            */
+
             'feeds.view',
             'feeds.create',
             'feeds.update',
             'feeds.delete',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Inventory
+            |--------------------------------------------------------------------------
+            */
+
             'inventory.view',
             'inventory.adjust',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Orders
+            |--------------------------------------------------------------------------
+            */
 
             'orders.view',
             'orders.update',
             'orders.cancel',
             'orders.refund',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Payment Methods
+            |--------------------------------------------------------------------------
+            */
+
+            'payment_methods.view',
+            'payment_methods.create',
+            'payment_methods.update',
+            'payment_methods.delete',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Locations
+            |--------------------------------------------------------------------------
+            */
+
+            'locations.view',
+            'locations.create',
+            'locations.update',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Customers
+            |--------------------------------------------------------------------------
+            */
 
             'customers.view',
             'customers.update',
@@ -64,14 +121,38 @@ class RolePermissionSeeder extends Seeder
             'chat.view',
             'chat.reply',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Reports
+            |--------------------------------------------------------------------------
+            */
+
             'reports.view',
             'reports.export',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Staff
+            |--------------------------------------------------------------------------
+            */
 
             'staff.view',
             'staff.manage',
 
+            /*
+            |--------------------------------------------------------------------------
+            | Settings
+            |--------------------------------------------------------------------------
+            */
+
             'settings.manage',
         ];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Create Permissions
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate([
@@ -79,6 +160,12 @@ class RolePermissionSeeder extends Seeder
                 'guard_name' => 'web',
             ]);
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Roles
+        |--------------------------------------------------------------------------
+        */
 
         $superAdmin = Role::firstOrCreate([
             'name' => 'super_admin',
@@ -114,21 +201,24 @@ class RolePermissionSeeder extends Seeder
         |--------------------------------------------------------------------------
         | Super Admin
         |--------------------------------------------------------------------------
+        |
+        | Super Admin receives every registered admin permission.
+        |--------------------------------------------------------------------------
         */
 
-        $superAdmin->syncPermissions(
-            $permissions
-        );
+        $superAdmin->syncPermissions($permissions);
 
         /*
         |--------------------------------------------------------------------------
         | Admin
         |--------------------------------------------------------------------------
+        |
+        | Admin receives every registered admin permission, including
+        | Payment Method management.
+        |--------------------------------------------------------------------------
         */
 
-        $admin->syncPermissions(
-            $permissions
-        );
+        $admin->syncPermissions($permissions);
 
         /*
         |--------------------------------------------------------------------------
@@ -171,6 +261,12 @@ class RolePermissionSeeder extends Seeder
         /*
         |--------------------------------------------------------------------------
         | Order Manager
+        |--------------------------------------------------------------------------
+        |
+        | Payment Method configuration is intentionally not included here.
+        |
+        | A dedicated payment review permission will be added later when the
+        | Payments Management / Payment Verification module is implemented.
         |--------------------------------------------------------------------------
         */
 

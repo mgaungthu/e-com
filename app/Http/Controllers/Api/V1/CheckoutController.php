@@ -106,7 +106,7 @@ class CheckoutController extends Controller
             }
 
         }
-        $calculation = $this->checkoutCalculator->calculate($cart->items);
+        $calculation = $this->checkoutCalculator->calculate($cart->items, $shippingAddress);
 
         $preview = [
             'cart' => new CartResource($cart),

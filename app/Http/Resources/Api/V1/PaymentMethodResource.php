@@ -12,9 +12,21 @@ class PaymentMethodResource extends JsonResource
     {
         return [
             'id' => $this->id,
+
             'name' => $this->name,
+
             'code' => $this->code,
+
+            'type' => $this->type,
+
+            'requires_proof' => $this->requires_proof,
+
+            'logo_url' => $this->logo_path
+                ? Storage::disk('public')->url($this->logo_path)
+                : null,
+
             'account_name' => $this->account_name,
+
             'account_number' => $this->account_number,
 
             'qr_image_url' => $this->qr_image_path
@@ -22,8 +34,10 @@ class PaymentMethodResource extends JsonResource
                 : null,
 
             'instructions' => $this->instructions,
-            'is_active' => (bool) $this->is_active,
-            'sort_order' => (int) $this->sort_order,
+
+            'is_active' => $this->is_active,
+
+            'sort_order' => $this->sort_order,
         ];
     }
 }

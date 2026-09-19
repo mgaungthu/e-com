@@ -73,8 +73,12 @@ export function ProductForm({
             primary_image_id:
                 product.images?.find((image) => image.is_primary)?.id ?? null,
             primary_new_image_index: null,
+
             is_active: product.is_active,
             is_featured: product.is_featured,
+            is_new_arrival: product.is_new_arrival,
+            is_promotion: product.is_promotion,
+
             seo_title: product.seo_title ?? "",
             seo_description: product.seo_description ?? "",
         });
@@ -191,17 +195,20 @@ export function ProductForm({
 
     function handleRemoveNewImage(index: number) {
         setValues((current) => {
-            const images = current.images.filter((_, itemIndex) => itemIndex !== index);
+            const images = current.images.filter(
+                (_, itemIndex) => itemIndex !== index,
+            );
             let primaryNewIndex = current.primary_new_image_index;
             let primaryImageId = current.primary_image_id;
 
             if (primaryNewIndex === index) {
                 primaryNewIndex = images.length > 0 ? 0 : null;
-                primaryImageId = images.length === 0
-                    ? (current.image_order.find(
-                          (id) => !current.removed_image_ids.includes(id),
-                      ) ?? null)
-                    : null;
+                primaryImageId =
+                    images.length === 0
+                        ? (current.image_order.find(
+                              (id) => !current.removed_image_ids.includes(id),
+                          ) ?? null)
+                        : null;
             } else if (primaryNewIndex !== null && primaryNewIndex > index) {
                 primaryNewIndex -= 1;
             }
@@ -236,7 +243,10 @@ export function ProductForm({
             }
 
             const images = [...current.images];
-            [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
+            [images[index], images[targetIndex]] = [
+                images[targetIndex],
+                images[index],
+            ];
 
             let primaryNewIndex = current.primary_new_image_index;
             if (primaryNewIndex === index) {
@@ -245,7 +255,11 @@ export function ProductForm({
                 primaryNewIndex = index;
             }
 
-            return { ...current, images, primary_new_image_index: primaryNewIndex };
+            return {
+                ...current,
+                images,
+                primary_new_image_index: primaryNewIndex,
+            };
         });
     }
 
@@ -267,6 +281,34 @@ export function ProductForm({
     return (
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             <FormErrorAlert message={formError} />
+
+
+            <FormSection
+                title="Product image gallery"
+                description="Upload up to 10 images, choose the primary image, and arrange their display order."
+            >
+                <ProductImageGalleryField
+                    existingImages={existingImages}
+                    newImages={values.images}
+                    primaryImageId={values.primary_image_id}
+                    primaryNewImageIndex={values.primary_new_image_index}
+                    error={getGalleryError()}
+                    disabled={isSubmitting}
+                    onAdd={handleAddImages}
+                    onRemoveExisting={handleRemoveExistingImage}
+                    onRemoveNew={handleRemoveNewImage}
+                    onSetPrimaryExisting={(imageId) => {
+                        updateField("primary_image_id", imageId);
+                        updateField("primary_new_image_index", null);
+                    }}
+                    onSetPrimaryNew={(index) => {
+                        updateField("primary_image_id", null);
+                        updateField("primary_new_image_index", index);
+                    }}
+                    onMoveExisting={handleMoveExistingImage}
+                    onMoveNew={handleMoveNewImage}
+                />
+            </FormSection>
 
             <FormSection
                 title="Basic information"
@@ -532,43 +574,18 @@ export function ProductForm({
                 </FormField>
             </FormSection>
 
-            <FormSection
-                title="Product image gallery"
-                description="Upload up to 10 images, choose the primary image, and arrange their display order."
-            >
-                <ProductImageGalleryField
-                    existingImages={existingImages}
-                    newImages={values.images}
-                    primaryImageId={values.primary_image_id}
-                    primaryNewImageIndex={values.primary_new_image_index}
-                    error={getGalleryError()}
-                    disabled={isSubmitting}
-                    onAdd={handleAddImages}
-                    onRemoveExisting={handleRemoveExistingImage}
-                    onRemoveNew={handleRemoveNewImage}
-                    onSetPrimaryExisting={(imageId) => {
-                        updateField("primary_image_id", imageId);
-                        updateField("primary_new_image_index", null);
-                    }}
-                    onSetPrimaryNew={(index) => {
-                        updateField("primary_image_id", null);
-                        updateField("primary_new_image_index", index);
-                    }}
-                    onMoveExisting={handleMoveExistingImage}
-                    onMoveNew={handleMoveNewImage}
-                />
-            </FormSection>
+            
 
             <FormSection
                 title="Product settings"
-                description="Control product visibility and featured placement."
-                contentClassName="grid gap-4 p-5 md:grid-cols-2"
+                description="Control product visibility and storefront placement."
+                contentClassName="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4"
             >
                 <CheckboxCard
                     name="is_active"
                     data-form-field="is_active"
-                    title="Active product"
-                    description="Active products are visible and available in the store."
+                    title="Active"
+                    description="Visible and available in the store."
                     checked={values.is_active}
                     error={getFieldError("is_active")}
                     onChange={(checked) => updateField("is_active", checked)}
@@ -577,11 +594,33 @@ export function ProductForm({
                 <CheckboxCard
                     name="is_featured"
                     data-form-field="is_featured"
-                    title="Featured product"
-                    description="Featured products can be highlighted on the storefront."
+                    title="Featured"
+                    description="Highlight on the storefront."
                     checked={values.is_featured}
                     error={getFieldError("is_featured")}
                     onChange={(checked) => updateField("is_featured", checked)}
+                />
+
+                <CheckboxCard
+                    name="is_new_arrival"
+                    data-form-field="is_new_arrival"
+                    title="New arrival"
+                    description="Show in New Arrivals."
+                    checked={values.is_new_arrival}
+                    error={getFieldError("is_new_arrival")}
+                    onChange={(checked) =>
+                        updateField("is_new_arrival", checked)
+                    }
+                />
+
+                <CheckboxCard
+                    name="is_promotion"
+                    data-form-field="is_promotion"
+                    title="Promotion"
+                    description="Show in Promotions."
+                    checked={values.is_promotion}
+                    error={getFieldError("is_promotion")}
+                    onChange={(checked) => updateField("is_promotion", checked)}
                 />
             </FormSection>
 

@@ -15,6 +15,13 @@ class StoreAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'location_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('locations', 'id')
+                    ->where(fn ($query) => $query->where('is_active', true)),
+            ],
+
             'type' => [
                 'sometimes',
                 'string',

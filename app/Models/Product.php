@@ -30,6 +30,8 @@ class Product extends Model
         'image_path',
         'is_active',
         'is_featured',
+        'is_new_arrival',
+        'is_promotion',
         'seo_title',
         'seo_description',
     ];
@@ -41,6 +43,8 @@ class Product extends Model
         'low_stock_threshold' => 'integer',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
+        'is_new_arrival' => 'boolean',
+        'is_promotion' => 'boolean',
     ];
 
     protected $appends = [

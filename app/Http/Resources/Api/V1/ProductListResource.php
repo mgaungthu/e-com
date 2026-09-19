@@ -40,6 +40,8 @@ class ProductListResource extends JsonResource
                 && $this->stock_quantity <= $this->low_stock_threshold,
 
             'is_featured' => (bool) $this->is_featured,
+            'is_new_arrival' => (bool) $this->is_new_arrival,
+            'is_promotion' => (bool) $this->is_promotion,
 
             'image_url' => $this->image_url
                 ?? ($this->image_path

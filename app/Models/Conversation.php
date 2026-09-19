@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Conversation extends Model
 {
@@ -32,8 +33,17 @@ class Conversation extends Model
         return $this->hasMany(Message::class);
     }
 
-    public function latestMessage()
+    public function latestMessage(): HasOne
     {
-        return $this->hasOne(Message::class)->latestOfMany();
+        return $this
+            ->hasOne(Message::class)
+            ->latestOfMany();
+    }
+
+    public function stars(): HasMany
+    {
+        return $this->hasMany(
+            ConversationStar::class
+        );
     }
 }

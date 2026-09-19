@@ -151,4 +151,52 @@ class ProductController extends Controller
             ],
         ], message: $message, );
     }
+
+    public function newArrivals(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $limit = (int) ($validated['limit'] ?? 10);
+
+        $products = Product::query()
+            ->where('is_active', true)
+            ->where('is_new_arrival', true)
+            ->with([
+                'category:id,name,slug',
+                'primaryImage',
+            ])
+            ->latest()
+            ->limit($limit)
+            ->get();
+
+        return $this->successResponse(data: [
+            'products' => ProductListResource::collection($products),
+        ], message: 'New arrival products retrieved successfully.', );
+    }
+
+    public function promotions(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $limit = (int) ($validated['limit'] ?? 10);
+
+        $products = Product::query()
+            ->where('is_active', true)
+            ->where('is_promotion', true)
+            ->with([
+                'category:id,name,slug',
+                'primaryImage',
+            ])
+            ->latest()
+            ->limit($limit)
+            ->get();
+
+        return $this->successResponse(data: [
+            'products' => ProductListResource::collection($products),
+        ], message: 'Promotion products retrieved successfully.', );
+    }
 }

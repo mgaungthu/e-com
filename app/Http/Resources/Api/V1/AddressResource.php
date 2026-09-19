@@ -11,6 +11,23 @@ class AddressResource extends JsonResource
     {
         return [
             'id' => $this->id,
+
+            'location_id' => $this->location_id,
+
+            'location' => $this->whenLoaded('location', function () {
+                if (! $this->location) {
+                    return null;
+                }
+
+                return [
+                    'id' => $this->location->id,
+                    'parent_id' => $this->location->parent_id,
+                    'name_en' => $this->location->name_en,
+                    'name_mm' => $this->location->name_mm,
+                    'type' => $this->location->type,
+                ];
+            }),
+
             'type' => $this->type,
             'label' => $this->label,
             'recipient_name' => $this->recipient_name,

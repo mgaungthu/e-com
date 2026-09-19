@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             // RolePermissionSeeder::class,
             // AdminUserSeeder::class,
             PaymentMethodSeeder::class,
+            QuickReplySeeder::class,
+
 
         ]);
     }

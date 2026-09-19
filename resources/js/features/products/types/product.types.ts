@@ -4,9 +4,9 @@ export type ProductCategory = {
 };
 
 export type ProductStockStatus =
-    | 'in_stock'
-    | 'low_stock'
-    | 'out_of_stock';
+    | "in_stock"
+    | "low_stock"
+    | "out_of_stock";
 
 export type ProductImage = {
     id: number;
@@ -20,6 +20,7 @@ export type ProductImage = {
 
 export type Product = {
     id: number;
+
     category_id: number | null;
     category: ProductCategory | null;
 
@@ -44,6 +45,8 @@ export type Product = {
 
     is_active: boolean;
     is_featured: boolean;
+    is_new_arrival: boolean;
+    is_promotion: boolean;
 
     seo_title: string | null;
     seo_description: string | null;
@@ -54,8 +57,10 @@ export type Product = {
 
 export type ProductListResponse = {
     success: boolean;
+
     data: {
         data: Product[];
+
         current_page: number;
         from: number | null;
         last_page: number;
@@ -68,6 +73,7 @@ export type ProductListResponse = {
 export type ProductResponse = {
     success: boolean;
     message?: string;
+
     data: {
         product: Product;
     };
@@ -75,36 +81,57 @@ export type ProductResponse = {
 
 export type ProductFilters = {
     search?: string;
+
     category_id?: number | string;
-    status?: 'all' | 'active' | 'inactive';
+
+    status?:
+        | "all"
+        | "active"
+        | "inactive";
+
     stock_status?:
-        | 'all'
-        | 'in_stock'
-        | 'low_stock'
-        | 'out_of_stock';
+        | "all"
+        | "in_stock"
+        | "low_stock"
+        | "out_of_stock";
+
+    featured?: boolean;
+    new_arrival?: boolean;
+    promotion?: boolean;
+
     page?: number;
     per_page?: number;
 };
 
 export type ProductFormValues = {
     category_id: string;
+
     name: string;
     slug: string;
     sku: string;
     barcode: string;
+
     short_description: string;
     description: string;
+
     price: string;
     sale_price: string;
+
     stock_quantity: string;
     low_stock_threshold: string;
+
     images: File[];
     removed_image_ids: number[];
     image_order: number[];
+
     primary_image_id: number | null;
     primary_new_image_index: number | null;
+
     is_active: boolean;
     is_featured: boolean;
+    is_new_arrival: boolean;
+    is_promotion: boolean;
+
     seo_title: string;
     seo_description: string;
 };
@@ -122,9 +149,16 @@ export type ProductValidationErrors = Partial<
 
 export type ProductFormProps = {
     product?: Product | null;
+
     categories: ProductCategoryOption[];
+
     isSubmitting: boolean;
+
     validationErrors?: ProductValidationErrors;
+
     formError?: string | null;
-    onSubmit: (values: ProductFormValues) => Promise<void> | void;
+
+    onSubmit: (
+        values: ProductFormValues
+    ) => Promise<void> | void;
 };

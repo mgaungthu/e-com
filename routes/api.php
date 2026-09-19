@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AdminChatController;
+use App\Http\Controllers\Api\V1\AdminQuickReplyController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\CartController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\HomeBannerController;
+use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -18,16 +20,21 @@ use App\Http\Controllers\Api\V1\PushDeviceController;
 use Illuminate\Support\Facades\Route;
 
 Route::domain(config('app.api_domain'))->group(function () {
-
     Route::prefix('v1')->group(function () {
-        Route::post('/contact', ContactController::class)
-            ->middleware('throttle:3,1');
 
         /*
-|--------------------------------------------------------------------------
-| Public home banners
-|--------------------------------------------------------------------------
-*/
+        |--------------------------------------------------------------------------
+        | Contact
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post('/contact', ContactController::class)->middleware('throttle:3,1');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Public Home Banners
+        |--------------------------------------------------------------------------
+        */
 
         Route::get('/home-banners', HomeBannerController::class);
 
@@ -37,34 +44,42 @@ Route::domain(config('app.api_domain'))->group(function () {
         |--------------------------------------------------------------------------
         */
 
-        Route::prefix('auth')->group(function () {
-            Route::post('/register', [AuthController::class, 'register'])
-                ->middleware('throttle:5,1');
+        Route::prefix('auth')
+            ->group(function () {
+                Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 
-            Route::post('/login', [AuthController::class, 'login'])
-                ->middleware('throttle:10,1');
+                Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-            Route::post('/google', [AuthController::class, 'google'])
-                ->middleware('throttle:10,1');
+                Route::post('/google', [AuthController::class, 'google'])->middleware('throttle:10,1');
 
-            Route::middleware('auth:sanctum')->group(function () {
-                Route::get('/me', [AuthController::class, 'me']);
+                Route::middleware('auth:sanctum')
+                    ->group(function () {
+                        Route::get('/me', [AuthController::class, 'me']);
 
-                Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
+                        Route::post('/email/verify', [
+                            EmailVerificationController::class,
+                            'verify',
+                        ])->middleware('throttle:10,1');
 
-                Route::post('/email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
+                        Route::post('/email/resend', [
+                            EmailVerificationController::class,
+                            'resend',
+                        ])->middleware('throttle:3,1');
 
-                Route::patch('/email', [EmailVerificationController::class, 'updateEmail'])->middleware('throttle:5,1');
+                        Route::patch('/email', [
+                            EmailVerificationController::class,
+                            'updateEmail',
+                        ])->middleware('throttle:5,1');
 
-                Route::post('/logout', [AuthController::class, 'logout']);
+                        Route::post('/logout', [AuthController::class, 'logout']);
 
-                Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+                        Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+                    });
             });
-        });
 
         /*
         |--------------------------------------------------------------------------
-        | Public catalog
+        | Public Catalog
         |--------------------------------------------------------------------------
         */
 
@@ -75,15 +90,21 @@ Route::domain(config('app.api_domain'))->group(function () {
         Route::get('/products', [ProductController::class, 'index']);
 
         /*
-         * This route must be declared before /products/{slug}.
+         * Specific product routes must be declared
+         * before /products/{slug}.
          */
+
         Route::get('/products/featured', [ProductController::class, 'featured']);
+
+        Route::get('/products/new-arrivals', [ProductController::class, 'newArrivals']);
+
+        Route::get('/products/promotions', [ProductController::class, 'promotions']);
 
         Route::get('/products/{slug}', [ProductController::class, 'show']);
 
         /*
         |--------------------------------------------------------------------------
-        | Public feeds
+        | Public Feeds
         |--------------------------------------------------------------------------
         */
 
@@ -95,7 +116,7 @@ Route::domain(config('app.api_domain'))->group(function () {
 
         /*
         |--------------------------------------------------------------------------
-        | Public payment methods
+        | Public Payment Methods
         |--------------------------------------------------------------------------
         */
 
@@ -103,7 +124,7 @@ Route::domain(config('app.api_domain'))->group(function () {
 
         /*
         |--------------------------------------------------------------------------
-        | Authenticated routes
+        | Authenticated Routes
         |--------------------------------------------------------------------------
         */
 
@@ -111,6 +132,7 @@ Route::domain(config('app.api_domain'))->group(function () {
             'auth:sanctum',
             'verified.api',
         ])->group(function () {
+
             /*
             |--------------------------------------------------------------------------
             | Cart
@@ -129,6 +151,14 @@ Route::domain(config('app.api_domain'))->group(function () {
 
             /*
             |--------------------------------------------------------------------------
+            | Locations
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get('/locations', [LocationController::class, 'index']);
+
+            /*
+            |--------------------------------------------------------------------------
             | Addresses
             |--------------------------------------------------------------------------
             */
@@ -143,9 +173,15 @@ Route::domain(config('app.api_domain'))->group(function () {
 
             Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
 
-            Route::patch('/addresses/{address}/default-shipping', [AddressController::class, 'setDefaultShipping']);
+            Route::patch('/addresses/{address}/default-shipping', [
+                AddressController::class,
+                'setDefaultShipping',
+            ]);
 
-            Route::patch('/addresses/{address}/default-billing', [AddressController::class, 'setDefaultBilling']);
+            Route::patch('/addresses/{address}/default-billing', [
+                AddressController::class,
+                'setDefaultBilling',
+            ]);
 
             /*
             |--------------------------------------------------------------------------
@@ -173,21 +209,27 @@ Route::domain(config('app.api_domain'))->group(function () {
 
             Route::post('/feeds', [FeedController::class, 'store']);
 
+            Route::post('/feeds/{feed}', [FeedController::class, 'update']);
+
+            Route::delete('/feeds/{feed}', [FeedController::class, 'destroy']);
+
             /*
             |--------------------------------------------------------------------------
             | Customer Chat
             |--------------------------------------------------------------------------
             */
 
-            Route::prefix('chat')->group(function () {
-                Route::get('/conversation', [ChatController::class, 'show']);
+            Route::prefix('chat')
+                ->group(function () {
+                    Route::get('/conversation', [ChatController::class, 'show']);
 
-                Route::get('/conversation/messages', [ChatController::class, 'messages']);
+                    Route::get('/conversation/messages', [ChatController::class, 'messages']);
 
-                Route::post('/conversation/messages', [ChatController::class, 'storeMessage'])->middleware('throttle:30,1');
+                    Route::post('/conversation/messages', [ChatController::class, 'storeMessage'])
+                        ->middleware('throttle:30,1');
 
-                Route::post('/conversation/read', [ChatController::class, 'markAsRead']);
-            });
+                    Route::post('/conversation/read', [ChatController::class, 'markAsRead']);
+                });
 
             /*
             |--------------------------------------------------------------------------
@@ -197,20 +239,61 @@ Route::domain(config('app.api_domain'))->group(function () {
             | These routes are consumed by the mobile app when the authenticated
             | user has chat.view / chat.reply permissions.
             |
-            | Authorization is enforced inside AdminChatController using Gate.
+            | Authorization is enforced inside the controllers using Gate.
             |
             */
 
             Route::prefix('chat/admin')
-                ->controller(AdminChatController::class)
                 ->group(function () {
-                    Route::get('/conversations', 'index');
 
-                    Route::get('/conversations/{conversation}/messages', 'messages');
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Conversations
+                    |--------------------------------------------------------------------------
+                    */
 
-                    Route::post('/conversations/{conversation}/messages', 'storeMessage')->middleware('throttle:30,1');
+                    Route::controller(AdminChatController::class)
+                        ->group(function () {
+                            Route::get('/conversations', 'index');
 
-                    Route::patch('/conversations/{conversation}/read', 'markAsRead');
+                            Route::get('/conversations/{conversation}/messages', 'messages');
+
+                            Route::post('/conversations/{conversation}/messages', 'storeMessage')
+                                ->middleware('throttle:30,1');
+
+                            Route::patch('/conversations/{conversation}/read', 'markAsRead');
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Star / Unstar
+                            |--------------------------------------------------------------------------
+                            |
+                            | Star state is stored per authenticated admin.
+                            |
+                            */
+
+                            Route::post('/conversations/{conversation}/star', 'star');
+
+                            Route::delete('/conversations/{conversation}/star', 'unstar');
+                        });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Quick Replies
+                    |--------------------------------------------------------------------------
+                    */
+
+                    Route::prefix('quick-replies')
+                        ->controller(AdminQuickReplyController::class)
+                        ->group(function () {
+                            Route::get('/', 'index');
+
+                            Route::post('/', 'store');
+
+                            Route::patch('/{quickReply}', 'update');
+
+                            Route::delete('/{quickReply}', 'destroy');
+                        });
                 });
 
             /*
@@ -225,6 +308,12 @@ Route::domain(config('app.api_domain'))->group(function () {
 
             Route::post('/orders', [OrderController::class, 'store']);
 
+            /*
+            |--------------------------------------------------------------------------
+            | Push Devices
+            |--------------------------------------------------------------------------
+            */
+
             Route::prefix('push-devices')
                 ->controller(PushDeviceController::class)
                 ->group(function () {
@@ -234,5 +323,4 @@ Route::domain(config('app.api_domain'))->group(function () {
                 });
         });
     });
-
 });

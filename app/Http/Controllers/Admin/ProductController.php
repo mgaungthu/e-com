@@ -16,7 +16,9 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function __construct(private readonly ProductImageService $productImageService) {}
+    public function __construct(
+        private readonly ProductImageService $productImageService
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -41,7 +43,10 @@ class ProductController extends Controller
         }
 
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
+            $query->where(
+                'category_id',
+                $request->integer('category_id')
+            );
         }
 
         if ($request->filled('status')) {
@@ -55,11 +60,19 @@ class ProductController extends Controller
         if ($request->filled('stock_status')) {
             match ($request->string('stock_status')->toString()) {
                 'in_stock' => $query
-                    ->whereColumn('stock_quantity', '>', 'low_stock_threshold'),
+                    ->whereColumn(
+                        'stock_quantity',
+                        '>',
+                        'low_stock_threshold'
+                    ),
 
                 'low_stock' => $query
                     ->where('stock_quantity', '>', 0)
-                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold'),
+                    ->whereColumn(
+                        'stock_quantity',
+                        '<=',
+                        'low_stock_threshold'
+                    ),
 
                 'out_of_stock' => $query
                     ->where('stock_quantity', '<=', 0),
@@ -68,7 +81,37 @@ class ProductController extends Controller
             };
         }
 
-        $perPage = min(max($request->integer('per_page', 15), 1), 100);
+        /*
+        |--------------------------------------------------------------------------
+        | Merchandising filters
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->filled('featured')) {
+            $query->where(
+                'is_featured',
+                $request->boolean('featured')
+            );
+        }
+
+        if ($request->filled('new_arrival')) {
+            $query->where(
+                'is_new_arrival',
+                $request->boolean('new_arrival')
+            );
+        }
+
+        if ($request->filled('promotion')) {
+            $query->where(
+                'is_promotion',
+                $request->boolean('promotion')
+            );
+        }
+
+        $perPage = min(
+            max($request->integer('per_page', 15), 1),
+            100
+        );
 
         return response()->json([
             'success' => true,
@@ -80,11 +123,21 @@ class ProductController extends Controller
     {
         $data = $request->validated();
 
-        $data['slug'] = $this->generateSlug($data['slug'] ?? null, $data['name']);
+        $data['slug'] = $this->generateSlug(
+            $data['slug'] ?? null,
+            $data['name']
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Product flags
+        |--------------------------------------------------------------------------
+        */
 
         $data['is_active'] = $request->boolean('is_active');
-
         $data['is_featured'] = $request->boolean('is_featured');
+        $data['is_new_arrival'] = $request->boolean('is_new_arrival');
+        $data['is_promotion'] = $request->boolean('is_promotion');
 
         unset(
             $data['images'],
@@ -94,15 +147,21 @@ class ProductController extends Controller
             $data['primary_new_image_index'],
         );
 
-        $product = DB::transaction(function () use ($data, $request): Product {
-            $product = Product::query()->create($data);
+        $product = DB::transaction(
+            function () use ($data, $request): Product {
+                $product = Product::query()->create($data);
 
-            $this->syncImages($product, $request);
+                $this->syncImages($product, $request);
 
-            return $product;
-        });
+                return $product;
+            }
+        );
 
-        $product->load(['category:id,name', 'images', 'primaryImage']);
+        $product->load([
+            'category:id,name',
+            'images',
+            'primaryImage',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -117,7 +176,11 @@ class ProductController extends Controller
     {
         Gate::authorize('products.view');
 
-        $product->load(['category:id,name', 'images', 'primaryImage']);
+        $product->load([
+            'category:id,name',
+            'images',
+            'primaryImage',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -127,15 +190,43 @@ class ProductController extends Controller
         ]);
     }
 
-    public function update(UpdateProductRequest $request, Product $product): JsonResponse
-    {
+    public function update(
+        UpdateProductRequest $request,
+        Product $product
+    ): JsonResponse {
         $data = $request->validated();
 
-        $data['slug'] = $this->generateSlug($data['slug'] ?? null, $data['name'], $product->id);
+        $data['slug'] = $this->generateSlug(
+            $data['slug'] ?? null,
+            $data['name'],
+            $product->id
+        );
 
-        $data['is_active'] = $request->boolean('is_active', false);
+        /*
+        |--------------------------------------------------------------------------
+        | Product flags
+        |--------------------------------------------------------------------------
+        */
 
-        $data['is_featured'] = $request->boolean('is_featured', false);
+        $data['is_active'] = $request->boolean(
+            'is_active',
+            false
+        );
+
+        $data['is_featured'] = $request->boolean(
+            'is_featured',
+            false
+        );
+
+        $data['is_new_arrival'] = $request->boolean(
+            'is_new_arrival',
+            false
+        );
+
+        $data['is_promotion'] = $request->boolean(
+            'is_promotion',
+            false
+        );
 
         unset(
             $data['images'],
@@ -145,12 +236,19 @@ class ProductController extends Controller
             $data['primary_new_image_index'],
         );
 
-        DB::transaction(function () use ($data, $product, $request): void {
-            $product->update($data);
-            $this->syncImages($product, $request);
-        });
+        DB::transaction(
+            function () use ($data, $product, $request): void {
+                $product->update($data);
 
-        $product->load(['category:id,name', 'images', 'primaryImage']);
+                $this->syncImages($product, $request);
+            }
+        );
+
+        $product->load([
+            'category:id,name',
+            'images',
+            'primaryImage',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -173,8 +271,11 @@ class ProductController extends Controller
         ]);
     }
 
-    private function generateSlug(?string $requestedSlug, string $name, ?int $ignoreProductId = null): string
-    {
+    private function generateSlug(
+        ?string $requestedSlug,
+        string $name,
+        ?int $ignoreProductId = null
+    ): string {
         $baseSlug = Str::slug($requestedSlug ?: $name);
 
         if ($baseSlug === '') {
@@ -186,7 +287,14 @@ class ProductController extends Controller
 
         while (
             Product::query()
-                ->when($ignoreProductId, fn ($query) => $query->where('id', '!=', $ignoreProductId))
+                ->when(
+                    $ignoreProductId,
+                    fn ($query) => $query->where(
+                        'id',
+                        '!=',
+                        $ignoreProductId
+                    )
+                )
                 ->where('slug', $slug)
                 ->exists()
         ) {
@@ -197,11 +305,17 @@ class ProductController extends Controller
         return $slug;
     }
 
-    private function syncImages(Product $product, Request $request): void
-    {
+    private function syncImages(
+        Product $product,
+        Request $request
+    ): void {
         $images = $product->images()->get();
-        $removedIds = collect($request->input('removed_image_ids', []))
-            ->map(fn (mixed $id): int => (int) $id);
+
+        $removedIds = collect(
+            $request->input('removed_image_ids', [])
+        )->map(
+            fn (mixed $id): int => (int) $id
+        );
 
         foreach ($images->whereIn('id', $removedIds) as $image) {
             $this->productImageService->delete($image->path);
@@ -209,55 +323,97 @@ class ProductController extends Controller
             $image->delete();
         }
 
-        $remainingImages = $product->images()->get()->keyBy('id');
-        $requestedOrder = collect($request->input('image_order', []))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->filter(fn (int $id): bool => $remainingImages->has($id));
+        $remainingImages = $product
+            ->images()
+            ->get()
+            ->keyBy('id');
+
+        $requestedOrder = collect(
+            $request->input('image_order', [])
+        )
+            ->map(
+                fn (mixed $id): int => (int) $id
+            )
+            ->filter(
+                fn (int $id): bool => $remainingImages->has($id)
+            );
 
         $orderedImages = $requestedOrder
-            ->map(fn (int $id): ProductImage => $remainingImages->get($id))
-            ->concat($remainingImages->except($requestedOrder->all())->values());
+            ->map(
+                fn (int $id): ProductImage =>
+                    $remainingImages->get($id)
+            )
+            ->concat(
+                $remainingImages
+                    ->except($requestedOrder->all())
+                    ->values()
+            );
 
         foreach ($orderedImages as $index => $image) {
-            $image->update(['sort_order' => $index]);
+            $image->update([
+                'sort_order' => $index,
+            ]);
         }
 
         $newImages = collect();
+
         $nextSortOrder = $orderedImages->count();
 
         foreach ($request->file('images', []) as $index => $file) {
             $path = $this->productImageService->store($file);
 
-            $newImages->put($index, $product->images()->create([
-                'path' => $path,
-                'alt_text' => $product->name,
-                'is_primary' => false,
-                'sort_order' => $nextSortOrder++,
-            ]), );
+            $newImages->put(
+                $index,
+                $product->images()->create([
+                    'path' => $path,
+                    'alt_text' => $product->name,
+                    'is_primary' => false,
+                    'sort_order' => $nextSortOrder++,
+                ])
+            );
         }
 
         $primaryImage = null;
-        $primaryImageId = $request->integer('primary_image_id');
-        $primaryNewImageIndex = $request->input('primary_new_image_index');
+
+        $primaryImageId = $request->integer(
+            'primary_image_id'
+        );
+
+        $primaryNewImageIndex = $request->input(
+            'primary_new_image_index'
+        );
 
         if ($primaryImageId > 0) {
-            $primaryImage = $product->images()->find($primaryImageId);
+            $primaryImage = $product
+                ->images()
+                ->find($primaryImageId);
         }
 
-        if ($primaryImage === null && $primaryNewImageIndex !== null) {
-            $primaryImage = $newImages->get((int) $primaryNewImageIndex);
+        if (
+            $primaryImage === null &&
+            $primaryNewImageIndex !== null
+        ) {
+            $primaryImage = $newImages->get(
+                (int) $primaryNewImageIndex
+            );
         }
 
         if ($primaryImage === null) {
-            $primaryImage = $product->images()
+            $primaryImage = $product
+                ->images()
                 ->where('is_primary', true)
-                ->first() ?? $product->images()->first();
+                ->first()
+                ?? $product->images()->first();
         }
 
-        $product->images()->update(['is_primary' => false]);
+        $product->images()->update([
+            'is_primary' => false,
+        ]);
 
         if ($primaryImage !== null) {
-            $primaryImage->update(['is_primary' => true]);
+            $primaryImage->update([
+                'is_primary' => true,
+            ]);
         }
 
         $product->update([

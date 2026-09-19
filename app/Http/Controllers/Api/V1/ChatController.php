@@ -24,13 +24,10 @@ class ChatController extends Controller
      *
      * The first request automatically creates the conversation.
      */
-    public function show(
-        Request $request
-    ): JsonResponse {
+    public function show(Request $request): JsonResponse
+    {
         $conversation =
-            $this->conversationForUser(
-                $request
-            );
+            $this->conversationForUser($request);
 
         $conversation->load([
             'latestMessage.sender',
@@ -42,35 +39,49 @@ class ChatController extends Controller
             'success' => true,
 
             'data' => [
-                'conversation' =>
-                    new ChatConversationResource(
-                        $conversation
-                    ),
+                'conversation' => new ChatConversationResource($conversation),
             ],
         ]);
     }
 
     /**
      * Return messages for the authenticated customer's conversation.
+     *
+     * Supports searching text messages and image captions
+     * through the "message" column.
      */
-    public function messages(
-        Request $request
-    ): JsonResponse {
+    public function messages(Request $request): JsonResponse
+    {
         $conversation =
-            $this->conversationForUser(
-                $request
-            );
+            $this->conversationForUser($request);
 
-        $perPage = min(
-            max(
-                $request->integer(
-                    'per_page',
-                    50,
-                ),
-                1,
-            ),
-            100,
-        );
+        $validated =
+            $request->validate([
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:255',
+                ],
+
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
+            ]);
+
+        $perPage =
+            $validated[
+                'per_page'
+            ] ?? 50;
+
+        $search =
+            isset(
+                $validated['search']
+            )
+                ? trim($validated['search'])
+                : null;
 
         $messages =
             $conversation
@@ -80,32 +91,41 @@ class ChatController extends Controller
                     'feed',
                     'product.primaryImage',
                 ])
+
+                /*
+                |--------------------------------------------------------------------------
+                | Search Message Text / Image Caption
+                |--------------------------------------------------------------------------
+                */
+
+                ->when(filled($search), function ($query) use ($search) {
+                    $query->where('message', 'like', "%{$search}%");
+                })
+
+                /*
+            |--------------------------------------------------------------------------
+            | Latest First
+            |--------------------------------------------------------------------------
+            */
+
                 ->orderByDesc('id')
-                ->paginate(
-                    $perPage
-                );
+
+                ->paginate($perPage);
 
         return response()->json([
             'success' => true,
 
             'data' => [
-                'messages' =>
-                    ChatMessageResource::collection(
-                        $messages->getCollection()
-                    ),
+                'messages' => ChatMessageResource::collection($messages->getCollection()),
 
                 'meta' => [
-                    'current_page' =>
-                        $messages->currentPage(),
+                    'current_page' => $messages->currentPage(),
 
-                    'last_page' =>
-                        $messages->lastPage(),
+                    'last_page' => $messages->lastPage(),
 
-                    'per_page' =>
-                        $messages->perPage(),
+                    'per_page' => $messages->perPage(),
 
-                    'total' =>
-                        $messages->total(),
+                    'total' => $messages->total(),
                 ],
             ],
         ]);
@@ -114,18 +134,13 @@ class ChatController extends Controller
     /**
      * Store a customer message.
      */
-    public function storeMessage(
-        StoreChatMessageRequest $request,
-        ChatPushNotificationService $chatPush,
-        ChatImageService $chatImageService,
-    ): JsonResponse {
+    public function storeMessage(StoreChatMessageRequest $request, ChatPushNotificationService $chatPush, ChatImageService $chatImageService): JsonResponse
+    {
         $validated =
             $request->validated();
 
         $conversation =
-            $this->conversationForUser(
-                $request
-            );
+            $this->conversationForUser($request);
 
         /*
         |--------------------------------------------------------------------------
@@ -139,9 +154,7 @@ class ChatController extends Controller
         ) {
             Feed::query()
                 ->visible()
-                ->findOrFail(
-                    $validated['feed_id']
-                );
+                ->findOrFail($validated['feed_id']);
         }
 
         /*
@@ -155,15 +168,10 @@ class ChatController extends Controller
             'product'
         ) {
             Product::query()
-                ->where(
-                    'is_active',
-                    true
-                )
-                ->findOrFail(
-                    $validated[
+                ->where('is_active', true)
+                ->findOrFail($validated[
                         'product_id'
-                    ]
-                );
+                    ]);
         }
 
         /*
@@ -180,16 +188,13 @@ class ChatController extends Controller
                 'image'
             ) {
                 $image =
-                    $request->file(
-                        'image'
-                    );
+                    $request->file('image');
 
-                if (!$image) {
+                if (! $image) {
                     return response()->json([
                         'success' => false,
 
-                        'message' =>
-                            'Image is required.',
+                        'message' => 'Image is required.',
 
                         'errors' => [
                             'image' => [
@@ -201,10 +206,7 @@ class ChatController extends Controller
 
                 $imageData =
                     $chatImageService
-                        ->store(
-                            $image,
-                            $conversation->id,
-                        );
+                        ->store($image, $conversation->id);
             }
 
             /*
@@ -214,103 +216,82 @@ class ChatController extends Controller
             */
 
             $message =
-                DB::transaction(
-                    function () use (
-                        $request,
-                        $validated,
-                        $conversation,
-                        $imageData,
-                    ): Message {
-                        $message =
-                            $conversation
-                                ->messages()
-                                ->create([
-                                    'sender_type' =>
-                                        'customer',
+                DB::transaction(function () use ($request, $validated, $conversation, $imageData, ): Message {
+                    $message =
+                        $conversation
+                            ->messages()
+                            ->create([
+                                'sender_type' => 'customer',
 
-                                    'sender_id' =>
-                                        $request
-                                            ->user()
-                                            ->id,
+                                'sender_id' => $request
+                                    ->user()
+                                    ->id,
 
-                                    'type' =>
-                                        $validated[
-                                            'type'
-                                        ],
+                                'type' => $validated[
+                                        'type'
+                                    ],
 
-                                    'message' =>
-                                        $validated[
-                                            'message'
-                                        ] ?? null,
+                                'message' => $validated[
+                                        'message'
+                                    ] ?? null,
 
-                                    /*
-                                    |--------------------------------------------------------------------------
-                                    | Image
-                                    |--------------------------------------------------------------------------
-                                    */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | Image
+                                |--------------------------------------------------------------------------
+                                */
 
-                                    'image_path' =>
-                                        $imageData[
-                                            'image_path'
-                                        ] ?? null,
+                                'image_path' => $imageData[
+                                        'image_path'
+                                    ] ?? null,
 
-                                    'image_width' =>
-                                        $imageData[
-                                            'image_width'
-                                        ] ?? null,
+                                'image_width' => $imageData[
+                                        'image_width'
+                                    ] ?? null,
 
-                                    'image_height' =>
-                                        $imageData[
-                                            'image_height'
-                                        ] ?? null,
+                                'image_height' => $imageData[
+                                        'image_height'
+                                    ] ?? null,
 
-                                    'image_size' =>
-                                        $imageData[
-                                            'image_size'
-                                        ] ?? null,
+                                'image_size' => $imageData[
+                                        'image_size'
+                                    ] ?? null,
 
-                                    'image_mime_type' =>
-                                        $imageData[
-                                            'image_mime_type'
-                                        ] ?? null,
+                                'image_mime_type' => $imageData[
+                                        'image_mime_type'
+                                    ] ?? null,
 
-                                    /*
-                                    |--------------------------------------------------------------------------
-                                    | Shared Resources
-                                    |--------------------------------------------------------------------------
-                                    */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | Shared Resources
+                                |--------------------------------------------------------------------------
+                                */
 
-                                    'feed_id' =>
-                                        $validated[
-                                            'feed_id'
-                                        ] ?? null,
+                                'feed_id' => $validated[
+                                        'feed_id'
+                                    ] ?? null,
 
-                                    'product_id' =>
-                                        $validated[
-                                            'product_id'
-                                        ] ?? null,
-                                ]);
+                                'product_id' => $validated[
+                                        'product_id'
+                                    ] ?? null,
+                            ]);
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Conversation State
-                        |--------------------------------------------------------------------------
-                        */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Conversation State
+                    |--------------------------------------------------------------------------
+                    */
 
-                        $conversation->update([
-                            'status' =>
-                                'open',
+                    $conversation->update([
+                        'status' => 'open',
 
-                            'last_message_at' =>
-                                $message->created_at,
+                        'last_message_at' => $message->created_at,
 
-                            'user_last_read_at' =>
-                                now(),
-                        ]);
+                        'user_last_read_at' => now(),
+                    ]);
 
-                        return $message;
-                    },
-                );
+                    return $message;
+                }, );
         } catch (Throwable $exception) {
             /*
             |--------------------------------------------------------------------------
@@ -319,18 +300,16 @@ class ChatController extends Controller
             */
 
             if (
-                !empty(
+                ! empty(
                     $imageData[
                         'image_path'
                     ]
                 )
             ) {
                 $chatImageService
-                    ->delete(
-                        $imageData[
+                    ->delete($imageData[
                             'image_path'
-                        ]
-                    );
+                        ]);
             }
 
             throw $exception;
@@ -354,23 +333,15 @@ class ChatController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $chatPush->notifyAdmins(
-            $conversation,
-            $message,
-            $request->user(),
-        );
+        $chatPush->notifyAdmins($conversation, $message, $request->user());
 
         return response()->json([
             'success' => true,
 
-            'message' =>
-                'Message sent successfully.',
+            'message' => 'Message sent successfully.',
 
             'data' => [
-                'message' =>
-                    new ChatMessageResource(
-                        $message
-                    ),
+                'message' => new ChatMessageResource($message),
             ],
         ], 201);
     }
@@ -378,17 +349,13 @@ class ChatController extends Controller
     /**
      * Mark the conversation as read by the customer.
      */
-    public function markAsRead(
-        Request $request
-    ): JsonResponse {
+    public function markAsRead(Request $request): JsonResponse
+    {
         $conversation =
-            $this->conversationForUser(
-                $request
-            );
+            $this->conversationForUser($request);
 
         $conversation->update([
-            'user_last_read_at' =>
-                now(),
+            'user_last_read_at' => now(),
         ]);
 
         $conversation->load([
@@ -400,14 +367,10 @@ class ChatController extends Controller
         return response()->json([
             'success' => true,
 
-            'message' =>
-                'Conversation marked as read.',
+            'message' => 'Conversation marked as read.',
 
             'data' => [
-                'conversation' =>
-                    new ChatConversationResource(
-                        $conversation
-                    ),
+                'conversation' => new ChatConversationResource($conversation),
             ],
         ]);
     }
@@ -415,24 +378,17 @@ class ChatController extends Controller
     /**
      * Resolve authenticated customer's support conversation.
      */
-    private function conversationForUser(
-        Request $request
-    ): Conversation {
+    private function conversationForUser(Request $request): Conversation
+    {
         return Conversation::query()
-            ->firstOrCreate(
-                [
-                    'user_id' =>
-                        $request
-                            ->user()
-                            ->id,
-                ],
-                [
-                    'status' =>
-                        'open',
+            ->firstOrCreate([
+                'user_id' => $request
+                    ->user()
+                    ->id,
+            ], [
+                'status' => 'open',
 
-                    'user_last_read_at' =>
-                        now(),
-                ],
-            );
+                'user_last_read_at' => now(),
+            ], );
     }
 }

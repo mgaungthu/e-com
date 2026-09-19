@@ -7,13 +7,7 @@ import type {
     ProductResponse,
 } from "@/features/products/types/product.types";
 
-type ProductFormDataValue =
-    | string
-    | number
-    | boolean
-    | File
-    | null
-    | undefined;
+type ProductFormDataValue = string | number | boolean | File | null | undefined;
 
 function appendValue(
     formData: FormData,
@@ -50,94 +44,42 @@ function appendValue(
     formData.append(key, String(value));
 }
 
-function toProductFormData(
-    values: ProductFormValues,
-): FormData {
+function toProductFormData(values: ProductFormValues): FormData {
     const formData = new FormData();
 
-    appendValue(
-        formData,
-        "category_id",
-        values.category_id,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "category_id", values.category_id, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "name",
-        values.name.trim(),
-    );
+    appendValue(formData, "name", values.name.trim());
 
-    appendValue(
-        formData,
-        "slug",
-        values.slug,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "slug", values.slug, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "sku",
-        values.sku.trim(),
-    );
+    appendValue(formData, "sku", values.sku.trim());
 
-    appendValue(
-        formData,
-        "barcode",
-        values.barcode,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "barcode", values.barcode, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "short_description",
-        values.short_description,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "short_description", values.short_description, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "description",
-        values.description,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "description", values.description, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "price",
-        values.price,
-    );
+    appendValue(formData, "price", values.price);
 
-    appendValue(
-        formData,
-        "sale_price",
-        values.sale_price,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "sale_price", values.sale_price, {
+        skipEmptyString: true,
+    });
 
-    appendValue(
-        formData,
-        "stock_quantity",
-        values.stock_quantity,
-    );
+    appendValue(formData, "stock_quantity", values.stock_quantity);
 
-    appendValue(
-        formData,
-        "low_stock_threshold",
-        values.low_stock_threshold,
-    );
+    appendValue(formData, "low_stock_threshold", values.low_stock_threshold);
 
     values.images.forEach((image) => {
         formData.append("images[]", image);
@@ -158,83 +100,51 @@ function toProductFormData(
         values.primary_new_image_index,
     );
 
-    appendValue(
-        formData,
-        "is_active",
-        values.is_active,
-    );
+    appendValue(formData, "is_active", values.is_active);
 
-    appendValue(
-        formData,
-        "is_featured",
-        values.is_featured,
-    );
+    appendValue(formData, "is_featured", values.is_featured);
 
-    appendValue(
-        formData,
-        "seo_title",
-        values.seo_title,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "is_new_arrival", values.is_new_arrival);
 
-    appendValue(
-        formData,
-        "seo_description",
-        values.seo_description,
-        {
-            skipEmptyString: true,
-        },
-    );
+    appendValue(formData, "is_promotion", values.is_promotion);
+
+    appendValue(formData, "seo_title", values.seo_title, {
+        skipEmptyString: true,
+    });
 
     return formData;
 }
 
 export const productApi = {
-    async list(
-        filters: ProductFilters,
-    ): Promise<ProductListResponse> {
-        const response =
-            await api.get<ProductListResponse>(
-                "/admin/products",
-                {
-                    params: filters,
-                },
-            );
+    async list(filters: ProductFilters): Promise<ProductListResponse> {
+        const response = await api.get<ProductListResponse>("/admin/products", {
+            params: filters,
+        });
 
         return response.data;
     },
 
-    async show(
-        productId: number,
-    ): Promise<ProductResponse> {
-        const response =
-            await api.get<ProductResponse>(
-                `/admin/products/${productId}`,
-            );
+    async show(productId: number): Promise<ProductResponse> {
+        const response = await api.get<ProductResponse>(
+            `/admin/products/${productId}`,
+        );
 
         return response.data;
     },
 
-    async create(
-        values: ProductFormValues,
-    ): Promise<ProductResponse> {
-        const formData =
-            toProductFormData(values);
+    async create(values: ProductFormValues): Promise<ProductResponse> {
+        const formData = toProductFormData(values);
 
-        const response =
-            await api.post<ProductResponse>(
-                "/admin/products",
-                formData,
-                {
-                    headers: {
-                        Accept: "application/json",
-                        "X-Requested-With":
-                            "XMLHttpRequest",
-                    },
+        const response = await api.post<ProductResponse>(
+            "/admin/products",
+            formData,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
                 },
-            );
+            },
+        );
 
         return response.data;
     },
@@ -243,8 +153,7 @@ export const productApi = {
         productId: number,
         values: ProductFormValues,
     ): Promise<ProductResponse> {
-        const formData =
-            toProductFormData(values);
+        const formData = toProductFormData(values);
 
         /*
          * File upload ပါတဲ့ request ကို PHP/Laravel က
@@ -253,34 +162,26 @@ export const productApi = {
          */
         formData.append("_method", "PUT");
 
-        const response =
-            await api.post<ProductResponse>(
-                `/admin/products/${productId}`,
-                formData,
-                {
-                    headers: {
-                        Accept: "application/json",
-                        "X-Requested-With":
-                            "XMLHttpRequest",
-                    },
+        const response = await api.post<ProductResponse>(
+            `/admin/products/${productId}`,
+            formData,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
                 },
-            );
+            },
+        );
 
         return response.data;
     },
 
-    async remove(
-        productId: number,
-    ): Promise<void> {
-        await api.delete(
-            `/admin/products/${productId}`,
-            {
-                headers: {
-                    Accept: "application/json",
-                    "X-Requested-With":
-                        "XMLHttpRequest",
-                },
+    async remove(productId: number): Promise<void> {
+        await api.delete(`/admin/products/${productId}`, {
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
             },
-        );
+        });
     },
 };
