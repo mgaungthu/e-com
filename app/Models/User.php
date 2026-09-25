@@ -170,10 +170,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Conversation::class);
     }
 
-    public function pushDevices(): HasMany
-    {
-        return $this->hasMany(PushDevice::class);
-    }
 
 
     public function getAvatarUrlAttribute(): ?string

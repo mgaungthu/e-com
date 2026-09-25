@@ -8,6 +8,7 @@ type FormSectionProps = {
     className?: string;
     contentClassName?: string;
     headerClassName?: string;
+    overflowVisible?: boolean;
 };
 
 export function FormSection({
@@ -18,18 +19,28 @@ export function FormSection({
     className = "",
     contentClassName = "p-5",
     headerClassName = "border-b border-slate-200 px-5 py-4",
+    overflowVisible = false,
 }: FormSectionProps) {
     return (
         <section
             className={[
-                "overflow-hidden rounded-xl border border-slate-200 bg-white",
+                overflowVisible
+                    ? "overflow-visible"
+                    : "overflow-hidden",
+                "rounded-xl border border-slate-200 bg-white",
                 className,
             ]
                 .filter(Boolean)
                 .join(" ")}
         >
             <div className={headerClassName}>
-                <div className={icon ? "flex items-center gap-3" : undefined}>
+                <div
+                    className={
+                        icon
+                            ? "flex items-center gap-3"
+                            : undefined
+                    }
+                >
                     {icon ? (
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                             {icon}
@@ -50,7 +61,9 @@ export function FormSection({
                 </div>
             </div>
 
-            <div className={contentClassName}>{children}</div>
+            <div className={contentClassName}>
+                {children}
+            </div>
         </section>
     );
 }

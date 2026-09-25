@@ -557,10 +557,10 @@ export function FeedForm({
                                                 alt={
                                                     product.name
                                                 }
-                                                className="h-10 w-10 rounded-md border border-slate-200 object-cover"
+                                                className="h-10 w-10 rounded-bsc-md border border-slate-200 object-cover"
                                             />
                                         ) : (
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-slate-100">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-bsc-md border border-slate-200 bg-slate-100">
                                                 <Package
                                                     size={
                                                         16
@@ -629,10 +629,10 @@ export function FeedForm({
                                             alt={
                                                 product.name
                                             }
-                                            className="h-10 w-10 shrink-0 rounded-md border border-slate-200 object-cover"
+                                            className="h-10 w-10 shrink-0 rounded-bsc-md border border-slate-200 object-cover"
                                         />
                                     ) : (
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-bsc-md border border-slate-200 bg-slate-100">
                                             <Package
                                                 size={
                                                     16

@@ -35,6 +35,8 @@ class ProductListResource extends JsonResource
             'stock_quantity' => (int) $this->stock_quantity,
             'low_stock_threshold' => (int) $this->low_stock_threshold,
 
+            'restock_eta' => $this->restock_eta?->toDateString(),
+
             'is_in_stock' => $this->stock_quantity > 0,
             'is_low_stock' => $this->stock_quantity > 0
                 && $this->stock_quantity <= $this->low_stock_threshold,

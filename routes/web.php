@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\FeedController;
 use App\Http\Controllers\Admin\HomeBannerController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\ProductController;
@@ -197,6 +198,16 @@ Route::domain(config('app.admin_domain'))->group(function () {
             Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
 
             Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Notification routes
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get('/notifications/products', [NotificationController::class, 'products'])->name('admin.notifications.products');
+
+            Route::post('/notifications/send', [NotificationController::class, 'send'])->name('admin.notifications.send');
 
             /*
             |--------------------------------------------------------------------------

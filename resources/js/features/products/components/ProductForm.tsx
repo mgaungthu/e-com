@@ -37,7 +37,9 @@ export function ProductForm({
     const [values, setValues] = useState<ProductFormValues>(
         PRODUCT_FORM_INITIAL_VALUES,
     );
-    const [fieldErrors, setFieldErrors] = useState<ProductValidationErrors>({});
+
+    const [fieldErrors, setFieldErrors] =
+        useState<ProductValidationErrors>({});
 
     useFocusFirstError({
         errors: validationErrors,
@@ -66,12 +68,18 @@ export function ProductForm({
             price: product.price,
             sale_price: product.sale_price ?? "",
             stock_quantity: product.stock_quantity.toString(),
-            low_stock_threshold: product.low_stock_threshold.toString(),
+            low_stock_threshold:
+                product.low_stock_threshold.toString(),
+            restock_eta: product.restock_eta ?? "",
             images: [],
             removed_image_ids: [],
-            image_order: (product.images ?? []).map((image) => image.id),
+            image_order: (product.images ?? []).map(
+                (image) => image.id,
+            ),
             primary_image_id:
-                product.images?.find((image) => image.is_primary)?.id ?? null,
+                product.images?.find(
+                    (image) => image.is_primary,
+                )?.id ?? null,
             primary_new_image_index: null,
 
             is_active: product.is_active,
@@ -82,6 +90,7 @@ export function ProductForm({
             seo_title: product.seo_title ?? "",
             seo_description: product.seo_description ?? "",
         });
+
         setFieldErrors({});
     }, [product]);
 
@@ -90,11 +99,15 @@ export function ProductForm({
         [product],
     );
 
-    function getFieldError(field: keyof ProductFormValues): string | null {
+    function getFieldError(
+        field: keyof ProductFormValues,
+    ): string | null {
         return fieldErrors[field]?.[0] ?? null;
     }
 
-    function clearFieldError(field: keyof ProductFormValues) {
+    function clearFieldError(
+        field: keyof ProductFormValues,
+    ) {
         setFieldErrors((current) => {
             if (!current[field]) {
                 return current;
@@ -102,11 +115,14 @@ export function ProductForm({
 
             const nextErrors = { ...current };
             delete nextErrors[field];
+
             return nextErrors;
         });
     }
 
-    function updateField<Key extends keyof ProductFormValues>(
+    function updateField<
+        Key extends keyof ProductFormValues,
+    >(
         key: Key,
         value: ProductFormValues[Key],
     ) {
@@ -114,6 +130,7 @@ export function ProductForm({
             ...current,
             [key]: value,
         }));
+
         clearFieldError(key);
 
         if (key === "price") {
@@ -127,25 +144,48 @@ export function ProductForm({
         }
 
         const order = new Map(
-            values.image_order.map((imageId, index) => [imageId, index]),
+            values.image_order.map(
+                (imageId, index) => [
+                    imageId,
+                    index,
+                ],
+            ),
         );
 
         return (product.images ?? [])
-            .filter((image) => !values.removed_image_ids.includes(image.id))
+            .filter(
+                (image) =>
+                    !values.removed_image_ids.includes(
+                        image.id,
+                    ),
+            )
             .sort(
                 (left, right) =>
-                    (order.get(left.id) ?? left.sort_order) -
-                    (order.get(right.id) ?? right.sort_order),
+                    (order.get(left.id) ??
+                        left.sort_order) -
+                    (order.get(right.id) ??
+                        right.sort_order),
             );
-    }, [product, values.image_order, values.removed_image_ids]);
+    }, [
+        product,
+        values.image_order,
+        values.removed_image_ids,
+    ]);
 
     function clearImageErrors() {
         setFieldErrors((current) => {
             const nextErrors = { ...current };
 
             Object.keys(nextErrors)
-                .filter((key) => key === "images" || key.startsWith("images."))
-                .forEach((key) => delete nextErrors[key]);
+                .filter(
+                    (key) =>
+                        key === "images" ||
+                        key.startsWith("images."),
+                )
+                .forEach(
+                    (key) =>
+                        delete nextErrors[key],
+                );
 
             return nextErrors;
         });
@@ -158,33 +198,52 @@ export function ProductForm({
 
         setValues((current) => ({
             ...current,
-            images: [...current.images, ...files],
+            images: [
+                ...current.images,
+                ...files,
+            ],
             primary_new_image_index:
                 current.primary_image_id === null &&
-                current.primary_new_image_index === null
+                current.primary_new_image_index ===
+                    null
                     ? current.images.length
                     : current.primary_new_image_index,
         }));
+
         clearImageErrors();
     }
 
-    function handleRemoveExistingImage(imageId: number) {
+    function handleRemoveExistingImage(
+        imageId: number,
+    ) {
         setValues((current) => {
-            const removedIds = [...current.removed_image_ids, imageId];
-            const remainingIds = current.image_order.filter(
-                (id) => id !== imageId && !removedIds.includes(id),
-            );
+            const removedIds = [
+                ...current.removed_image_ids,
+                imageId,
+            ];
+
+            const remainingIds =
+                current.image_order.filter(
+                    (id) =>
+                        id !== imageId &&
+                        !removedIds.includes(id),
+                );
 
             return {
                 ...current,
                 removed_image_ids: removedIds,
-                image_order: current.image_order.filter((id) => id !== imageId),
+                image_order:
+                    current.image_order.filter(
+                        (id) => id !== imageId,
+                    ),
                 primary_image_id:
-                    current.primary_image_id === imageId
+                    current.primary_image_id ===
+                    imageId
                         ? (remainingIds[0] ?? null)
                         : current.primary_image_id,
                 primary_new_image_index:
-                    current.primary_image_id === imageId &&
+                    current.primary_image_id ===
+                        imageId &&
                     remainingIds.length === 0 &&
                     current.images.length > 0
                         ? 0
@@ -193,72 +252,133 @@ export function ProductForm({
         });
     }
 
-    function handleRemoveNewImage(index: number) {
+    function handleRemoveNewImage(
+        index: number,
+    ) {
         setValues((current) => {
-            const images = current.images.filter(
-                (_, itemIndex) => itemIndex !== index,
-            );
-            let primaryNewIndex = current.primary_new_image_index;
-            let primaryImageId = current.primary_image_id;
+            const images =
+                current.images.filter(
+                    (_, itemIndex) =>
+                        itemIndex !== index,
+                );
+
+            let primaryNewIndex =
+                current.primary_new_image_index;
+
+            let primaryImageId =
+                current.primary_image_id;
 
             if (primaryNewIndex === index) {
-                primaryNewIndex = images.length > 0 ? 0 : null;
+                primaryNewIndex =
+                    images.length > 0
+                        ? 0
+                        : null;
+
                 primaryImageId =
                     images.length === 0
                         ? (current.image_order.find(
-                              (id) => !current.removed_image_ids.includes(id),
+                              (id) =>
+                                  !current.removed_image_ids.includes(
+                                      id,
+                                  ),
                           ) ?? null)
                         : null;
-            } else if (primaryNewIndex !== null && primaryNewIndex > index) {
+            } else if (
+                primaryNewIndex !== null &&
+                primaryNewIndex > index
+            ) {
                 primaryNewIndex -= 1;
             }
 
             return {
                 ...current,
                 images,
-                primary_image_id: primaryImageId,
-                primary_new_image_index: primaryNewIndex,
+                primary_image_id:
+                    primaryImageId,
+                primary_new_image_index:
+                    primaryNewIndex,
             };
         });
     }
 
-    function handleMoveExistingImage(index: number, direction: -1 | 1) {
-        const targetIndex = index + direction;
-        const order = existingImages.map((image) => image.id);
+    function handleMoveExistingImage(
+        index: number,
+        direction: -1 | 1,
+    ) {
+        const targetIndex =
+            index + direction;
 
-        if (targetIndex < 0 || targetIndex >= order.length) {
+        const order =
+            existingImages.map(
+                (image) => image.id,
+            );
+
+        if (
+            targetIndex < 0 ||
+            targetIndex >= order.length
+        ) {
             return;
         }
 
-        [order[index], order[targetIndex]] = [order[targetIndex], order[index]];
-        updateField("image_order", order);
+        [order[index], order[targetIndex]] = [
+            order[targetIndex],
+            order[index],
+        ];
+
+        updateField(
+            "image_order",
+            order,
+        );
     }
 
-    function handleMoveNewImage(index: number, direction: -1 | 1) {
-        const targetIndex = index + direction;
+    function handleMoveNewImage(
+        index: number,
+        direction: -1 | 1,
+    ) {
+        const targetIndex =
+            index + direction;
 
         setValues((current) => {
-            if (targetIndex < 0 || targetIndex >= current.images.length) {
+            if (
+                targetIndex < 0 ||
+                targetIndex >=
+                    current.images.length
+            ) {
                 return current;
             }
 
-            const images = [...current.images];
-            [images[index], images[targetIndex]] = [
+            const images = [
+                ...current.images,
+            ];
+
+            [
+                images[index],
+                images[targetIndex],
+            ] = [
                 images[targetIndex],
                 images[index],
             ];
 
-            let primaryNewIndex = current.primary_new_image_index;
-            if (primaryNewIndex === index) {
-                primaryNewIndex = targetIndex;
-            } else if (primaryNewIndex === targetIndex) {
+            let primaryNewIndex =
+                current.primary_new_image_index;
+
+            if (
+                primaryNewIndex === index
+            ) {
+                primaryNewIndex =
+                    targetIndex;
+            } else if (
+                primaryNewIndex ===
+                targetIndex
+            ) {
                 primaryNewIndex = index;
             }
 
             return {
                 ...current,
                 images,
-                primary_new_image_index: primaryNewIndex,
+                primary_new_image_index:
+                    primaryNewIndex,
             };
         });
     }
@@ -266,73 +386,129 @@ export function ProductForm({
     function getGalleryError(): string | null {
         return (
             fieldErrors.images?.[0] ??
-            Object.entries(fieldErrors).find(([key]) =>
+            Object.entries(
+                fieldErrors,
+            ).find(([key]) =>
                 key.startsWith("images."),
             )?.[1]?.[0] ??
             null
         );
     }
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(
+        event: FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
+
         await onSubmit(values);
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-            <FormErrorAlert message={formError} />
-
+        <form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+            noValidate
+        >
+            <FormErrorAlert
+                message={formError}
+            />
 
             <FormSection
                 title="Product image gallery"
                 description="Upload up to 10 images, choose the primary image, and arrange their display order."
             >
                 <ProductImageGalleryField
-                    existingImages={existingImages}
+                    existingImages={
+                        existingImages
+                    }
                     newImages={values.images}
-                    primaryImageId={values.primary_image_id}
-                    primaryNewImageIndex={values.primary_new_image_index}
+                    primaryImageId={
+                        values.primary_image_id
+                    }
+                    primaryNewImageIndex={
+                        values.primary_new_image_index
+                    }
                     error={getGalleryError()}
                     disabled={isSubmitting}
                     onAdd={handleAddImages}
-                    onRemoveExisting={handleRemoveExistingImage}
-                    onRemoveNew={handleRemoveNewImage}
-                    onSetPrimaryExisting={(imageId) => {
-                        updateField("primary_image_id", imageId);
-                        updateField("primary_new_image_index", null);
+                    onRemoveExisting={
+                        handleRemoveExistingImage
+                    }
+                    onRemoveNew={
+                        handleRemoveNewImage
+                    }
+                    onSetPrimaryExisting={(
+                        imageId,
+                    ) => {
+                        updateField(
+                            "primary_image_id",
+                            imageId,
+                        );
+
+                        updateField(
+                            "primary_new_image_index",
+                            null,
+                        );
                     }}
-                    onSetPrimaryNew={(index) => {
-                        updateField("primary_image_id", null);
-                        updateField("primary_new_image_index", index);
+                    onSetPrimaryNew={(
+                        index,
+                    ) => {
+                        updateField(
+                            "primary_image_id",
+                            null,
+                        );
+
+                        updateField(
+                            "primary_new_image_index",
+                            index,
+                        );
                     }}
-                    onMoveExisting={handleMoveExistingImage}
-                    onMoveNew={handleMoveNewImage}
+                    onMoveExisting={
+                        handleMoveExistingImage
+                    }
+                    onMoveNew={
+                        handleMoveNewImage
+                    }
                 />
             </FormSection>
 
             <FormSection
                 title="Basic information"
                 description="Enter the main product details and category."
-                icon={<Package size={20} />}
+                icon={
+                    <Package size={20} />
+                }
                 contentClassName="grid gap-5 p-5 md:grid-cols-2"
             >
                 <FormField
                     label="Product name"
                     htmlFor="product-name"
                     required
-                    error={getFieldError("name")}
+                    error={getFieldError(
+                        "name",
+                    )}
                 >
                     <TextInput
                         id="product-name"
                         data-form-field="name"
                         value={values.name}
-                        onChange={(event) =>
-                            updateField("name", event.target.value)
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "name",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="Enter product name"
-                        error={getFieldError("name")}
+                        error={getFieldError(
+                            "name",
+                        )}
                         aria-describedby={
-                            getFieldError("name")
+                            getFieldError(
+                                "name",
+                            )
                                 ? "product-name-error"
                                 : undefined
                         }
@@ -342,28 +518,56 @@ export function ProductForm({
                 <FormField
                     label="Category"
                     htmlFor="product-category"
-                    error={getFieldError("category_id")}
+                    error={getFieldError(
+                        "category_id",
+                    )}
                 >
                     <SelectInput
                         id="product-category"
                         data-form-field="category_id"
-                        value={values.category_id}
-                        onChange={(event) =>
-                            updateField("category_id", event.target.value)
+                        value={
+                            values.category_id
                         }
-                        error={getFieldError("category_id")}
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "category_id",
+                                event.target
+                                    .value,
+                            )
+                        }
+                        error={getFieldError(
+                            "category_id",
+                        )}
                         aria-describedby={
-                            getFieldError("category_id")
+                            getFieldError(
+                                "category_id",
+                            )
                                 ? "product-category-error"
                                 : undefined
                         }
                     >
-                        <option value="">No category</option>
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
+                        <option value="">
+                            No category
+                        </option>
+
+                        {categories.map(
+                            (category) => (
+                                <option
+                                    key={
+                                        category.id
+                                    }
+                                    value={
+                                        category.id
+                                    }
+                                >
+                                    {
+                                        category.name
+                                    }
+                                </option>
+                            ),
+                        )}
                     </SelectInput>
                 </FormField>
 
@@ -372,19 +576,31 @@ export function ProductForm({
                     htmlFor="product-sku"
                     required
                     helperText="Use a unique stock keeping unit."
-                    error={getFieldError("sku")}
+                    error={getFieldError(
+                        "sku",
+                    )}
                 >
                     <TextInput
                         id="product-sku"
                         data-form-field="sku"
                         value={values.sku}
-                        onChange={(event) =>
-                            updateField("sku", event.target.value)
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "sku",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="e.g. PROD-001"
-                        error={getFieldError("sku")}
+                        error={getFieldError(
+                            "sku",
+                        )}
                         aria-describedby={
-                            getFieldError("sku")
+                            getFieldError(
+                                "sku",
+                            )
                                 ? "product-sku-error"
                                 : undefined
                         }
@@ -394,19 +610,33 @@ export function ProductForm({
                 <FormField
                     label="Barcode"
                     htmlFor="product-barcode"
-                    error={getFieldError("barcode")}
+                    error={getFieldError(
+                        "barcode",
+                    )}
                 >
                     <TextInput
                         id="product-barcode"
                         data-form-field="barcode"
-                        value={values.barcode}
-                        onChange={(event) =>
-                            updateField("barcode", event.target.value)
+                        value={
+                            values.barcode
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "barcode",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="Enter barcode"
-                        error={getFieldError("barcode")}
+                        error={getFieldError(
+                            "barcode",
+                        )}
                         aria-describedby={
-                            getFieldError("barcode")
+                            getFieldError(
+                                "barcode",
+                            )
                                 ? "product-barcode-error"
                                 : undefined
                         }
@@ -416,14 +646,16 @@ export function ProductForm({
 
             <FormSection
                 title="Pricing and inventory"
-                description="Configure product pricing and stock levels."
+                description="Configure product pricing, stock levels, and expected restock date."
                 contentClassName="grid gap-5 p-5 md:grid-cols-2"
             >
                 <FormField
                     label="Regular price"
                     htmlFor="product-price"
                     required
-                    error={getFieldError("price")}
+                    error={getFieldError(
+                        "price",
+                    )}
                 >
                     <NumberInput
                         id="product-price"
@@ -432,13 +664,23 @@ export function ProductForm({
                         min="0"
                         step="1"
                         value={values.price}
-                        onChange={(event) =>
-                            updateField("price", event.target.value)
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "price",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="0"
-                        error={getFieldError("price")}
+                        error={getFieldError(
+                            "price",
+                        )}
                         aria-describedby={
-                            getFieldError("price")
+                            getFieldError(
+                                "price",
+                            )
                                 ? "product-price-error"
                                 : undefined
                         }
@@ -449,7 +691,9 @@ export function ProductForm({
                     label="Sale price"
                     htmlFor="product-sale-price"
                     helperText="Leave empty when the product is not on sale."
-                    error={getFieldError("sale_price")}
+                    error={getFieldError(
+                        "sale_price",
+                    )}
                 >
                     <NumberInput
                         id="product-sale-price"
@@ -457,14 +701,26 @@ export function ProductForm({
                         suffix="MMK"
                         min="0"
                         step="1"
-                        value={values.sale_price}
-                        onChange={(event) =>
-                            updateField("sale_price", event.target.value)
+                        value={
+                            values.sale_price
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "sale_price",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="0"
-                        error={getFieldError("sale_price")}
+                        error={getFieldError(
+                            "sale_price",
+                        )}
                         aria-describedby={
-                            getFieldError("sale_price")
+                            getFieldError(
+                                "sale_price",
+                            )
                                 ? "product-sale-price-error"
                                 : undefined
                         }
@@ -475,19 +731,33 @@ export function ProductForm({
                     label="Stock quantity"
                     htmlFor="stock-quantity"
                     required
-                    error={getFieldError("stock_quantity")}
+                    error={getFieldError(
+                        "stock_quantity",
+                    )}
                 >
                     <NumberInput
                         id="stock-quantity"
                         data-form-field="stock_quantity"
                         min="0"
-                        value={values.stock_quantity}
-                        onChange={(event) =>
-                            updateField("stock_quantity", event.target.value)
+                        value={
+                            values.stock_quantity
                         }
-                        error={getFieldError("stock_quantity")}
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "stock_quantity",
+                                event.target
+                                    .value,
+                            )
+                        }
+                        error={getFieldError(
+                            "stock_quantity",
+                        )}
                         aria-describedby={
-                            getFieldError("stock_quantity")
+                            getFieldError(
+                                "stock_quantity",
+                            )
                                 ? "stock-quantity-error"
                                 : undefined
                         }
@@ -499,23 +769,71 @@ export function ProductForm({
                     htmlFor="low-stock-threshold"
                     required
                     helperText="The product will be marked as low stock at this quantity."
-                    error={getFieldError("low_stock_threshold")}
+                    error={getFieldError(
+                        "low_stock_threshold",
+                    )}
                 >
                     <NumberInput
                         id="low-stock-threshold"
                         data-form-field="low_stock_threshold"
                         min="0"
-                        value={values.low_stock_threshold}
-                        onChange={(event) =>
+                        value={
+                            values.low_stock_threshold
+                        }
+                        onChange={(
+                            event,
+                        ) =>
                             updateField(
                                 "low_stock_threshold",
-                                event.target.value,
+                                event.target
+                                    .value,
                             )
                         }
-                        error={getFieldError("low_stock_threshold")}
+                        error={getFieldError(
+                            "low_stock_threshold",
+                        )}
                         aria-describedby={
-                            getFieldError("low_stock_threshold")
+                            getFieldError(
+                                "low_stock_threshold",
+                            )
                                 ? "low-stock-threshold-error"
+                                : undefined
+                        }
+                    />
+                </FormField>
+
+                <FormField
+                    label="Expected restock date"
+                    htmlFor="restock-eta"
+                    helperText="Optional. This date can be shown to customers when the product is out of stock."
+                    error={getFieldError(
+                        "restock_eta",
+                    )}
+                >
+                    <TextInput
+                        id="restock-eta"
+                        type="date"
+                        data-form-field="restock_eta"
+                        value={
+                            values.restock_eta
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "restock_eta",
+                                event.target
+                                    .value,
+                            )
+                        }
+                        error={getFieldError(
+                            "restock_eta",
+                        )}
+                        aria-describedby={
+                            getFieldError(
+                                "restock_eta",
+                            )
+                                ? "restock-eta-error"
                                 : undefined
                         }
                     />
@@ -530,20 +848,34 @@ export function ProductForm({
                 <FormField
                     label="Short description"
                     htmlFor="short-description"
-                    error={getFieldError("short_description")}
+                    error={getFieldError(
+                        "short_description",
+                    )}
                 >
                     <TextArea
                         id="short-description"
                         data-form-field="short_description"
                         rows={3}
-                        value={values.short_description}
-                        onChange={(event) =>
-                            updateField("short_description", event.target.value)
+                        value={
+                            values.short_description
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "short_description",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="Write a short product summary..."
-                        error={getFieldError("short_description")}
+                        error={getFieldError(
+                            "short_description",
+                        )}
                         aria-describedby={
-                            getFieldError("short_description")
+                            getFieldError(
+                                "short_description",
+                            )
                                 ? "short-description-error"
                                 : undefined
                         }
@@ -553,28 +885,40 @@ export function ProductForm({
                 <FormField
                     label="Full description"
                     htmlFor="description"
-                    error={getFieldError("description")}
+                    error={getFieldError(
+                        "description",
+                    )}
                 >
                     <TextArea
                         id="description"
                         data-form-field="description"
                         rows={8}
-                        value={values.description}
-                        onChange={(event) =>
-                            updateField("description", event.target.value)
+                        value={
+                            values.description
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            updateField(
+                                "description",
+                                event.target
+                                    .value,
+                            )
                         }
                         placeholder="Write the full product description..."
-                        error={getFieldError("description")}
+                        error={getFieldError(
+                            "description",
+                        )}
                         aria-describedby={
-                            getFieldError("description")
+                            getFieldError(
+                                "description",
+                            )
                                 ? "description-error"
                                 : undefined
                         }
                     />
                 </FormField>
             </FormSection>
-
-            
 
             <FormSection
                 title="Product settings"
@@ -586,9 +930,18 @@ export function ProductForm({
                     data-form-field="is_active"
                     title="Active"
                     description="Visible and available in the store."
-                    checked={values.is_active}
-                    error={getFieldError("is_active")}
-                    onChange={(checked) => updateField("is_active", checked)}
+                    checked={
+                        values.is_active
+                    }
+                    error={getFieldError(
+                        "is_active",
+                    )}
+                    onChange={(checked) =>
+                        updateField(
+                            "is_active",
+                            checked,
+                        )
+                    }
                 />
 
                 <CheckboxCard
@@ -596,9 +949,18 @@ export function ProductForm({
                     data-form-field="is_featured"
                     title="Featured"
                     description="Highlight on the storefront."
-                    checked={values.is_featured}
-                    error={getFieldError("is_featured")}
-                    onChange={(checked) => updateField("is_featured", checked)}
+                    checked={
+                        values.is_featured
+                    }
+                    error={getFieldError(
+                        "is_featured",
+                    )}
+                    onChange={(checked) =>
+                        updateField(
+                            "is_featured",
+                            checked,
+                        )
+                    }
                 />
 
                 <CheckboxCard
@@ -606,10 +968,17 @@ export function ProductForm({
                     data-form-field="is_new_arrival"
                     title="New arrival"
                     description="Show in New Arrivals."
-                    checked={values.is_new_arrival}
-                    error={getFieldError("is_new_arrival")}
+                    checked={
+                        values.is_new_arrival
+                    }
+                    error={getFieldError(
+                        "is_new_arrival",
+                    )}
                     onChange={(checked) =>
-                        updateField("is_new_arrival", checked)
+                        updateField(
+                            "is_new_arrival",
+                            checked,
+                        )
                     }
                 />
 
@@ -618,9 +987,18 @@ export function ProductForm({
                     data-form-field="is_promotion"
                     title="Promotion"
                     description="Show in Promotions."
-                    checked={values.is_promotion}
-                    error={getFieldError("is_promotion")}
-                    onChange={(checked) => updateField("is_promotion", checked)}
+                    checked={
+                        values.is_promotion
+                    }
+                    error={getFieldError(
+                        "is_promotion",
+                    )}
+                    onChange={(checked) =>
+                        updateField(
+                            "is_promotion",
+                            checked,
+                        )
+                    }
                 />
             </FormSection>
 

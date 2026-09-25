@@ -40,6 +40,8 @@ import ProductEditPage from "@/features/products/pages/ProductEditPage";
 
 import ReportsPage from "@/features/reports/pages/ReportsPage";
 
+import NotificationsPage from "@/features/notifications/pages/NotificationsPage";
+
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 import AdminLayout from "@/layouts/AdminLayout";
@@ -141,10 +143,10 @@ export default function AppRoutes() {
                     />
 
                     {/*
-|--------------------------------------------------------------------------
-| Locations
-|--------------------------------------------------------------------------
-*/}
+                    |--------------------------------------------------------------------------
+                    | Locations
+                    |--------------------------------------------------------------------------
+                    */}
 
                     <Route
                         path="/locations"
@@ -350,6 +352,21 @@ export default function AppRoutes() {
                         element={
                             <PermissionRoute permission="reports.view">
                                 <ReportsPage />
+                            </PermissionRoute>
+                        }
+                    />
+
+                    {/*
+                    |--------------------------------------------------------------------------
+                    | Notifications
+                    |--------------------------------------------------------------------------
+                    */}
+
+                    <Route
+                        path="/notifications"
+                        element={
+                            <PermissionRoute permission="notifications.view">
+                                <NotificationsPage />
                             </PermissionRoute>
                         }
                     />

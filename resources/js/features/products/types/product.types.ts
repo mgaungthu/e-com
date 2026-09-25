@@ -38,6 +38,7 @@ export type Product = {
     stock_quantity: number;
     low_stock_threshold: number;
     stock_status: ProductStockStatus;
+    restock_eta: string | null;
 
     image_path: string | null;
     image_url: string | null;
@@ -119,6 +120,7 @@ export type ProductFormValues = {
 
     stock_quantity: string;
     low_stock_threshold: string;
+    restock_eta: string;
 
     images: File[];
     removed_image_ids: number[];
@@ -159,6 +161,6 @@ export type ProductFormProps = {
     formError?: string | null;
 
     onSubmit: (
-        values: ProductFormValues
+        values: ProductFormValues,
     ) => Promise<void> | void;
 };

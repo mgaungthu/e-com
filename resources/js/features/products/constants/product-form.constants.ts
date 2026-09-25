@@ -21,6 +21,7 @@ export const PRODUCT_FORM_INITIAL_VALUES: ProductFormValues = {
 
     stock_quantity: "0",
     low_stock_threshold: "5",
+    restock_eta: "",
 
     images: [],
     removed_image_ids: [],
@@ -51,6 +52,7 @@ export const PRODUCT_VALIDATION_FIELD_ORDER: Array<
 
     "stock_quantity",
     "low_stock_threshold",
+    "restock_eta",
 
     "short_description",
     "description",

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AdminChatController;
 use App\Http\Controllers\Api\V1\AdminQuickReplyController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ChatController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\HomeBannerController;
 use App\Http\Controllers\Api\V1\LocationController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -51,6 +53,22 @@ Route::domain(config('app.api_domain'))->group(function () {
                 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
                 Route::post('/google', [AuthController::class, 'google'])->middleware('throttle:10,1');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Password Reset
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/password/forgot', [
+                    PasswordResetController::class,
+                    'forgot',
+                ], )->middleware('throttle:3,1');
+
+                Route::post('/password/reset', [
+                    PasswordResetController::class,
+                    'reset',
+                ], )->middleware('throttle:10,1');
 
                 Route::middleware('auth:sanctum')
                     ->group(function () {
@@ -154,6 +172,8 @@ Route::domain(config('app.api_domain'))->group(function () {
             | Locations
             |--------------------------------------------------------------------------
             */
+
+            Route::get('/locations/delivery-areas', [LocationController::class, 'deliveryAreas']);
 
             Route::get('/locations', [LocationController::class, 'index']);
 
@@ -320,6 +340,24 @@ Route::domain(config('app.api_domain'))->group(function () {
                     Route::post('/', 'store');
 
                     Route::delete('/', 'destroy');
+                });
+
+            /*
+            |--------------------------------------------------------------------------
+            | Notifications
+            |--------------------------------------------------------------------------
+            */
+
+            Route::prefix('notifications')
+                ->controller(NotificationController::class)
+                ->group(function () {
+                    Route::get('/', 'index');
+
+                    Route::get('/unread-count', 'unreadCount');
+
+                    Route::patch('/read-all', 'markAllAsRead');
+
+                    Route::patch('/{notification}/read', 'markAsRead');
                 });
         });
     });

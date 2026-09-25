@@ -5,26 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PushDevice extends Model
+class PasswordResetCode extends Model
 {
     protected $fillable = [
         'user_id',
-        'expo_push_token',
-        'platform',
-        'device_name',
-        'app_version',
-        'last_seen_at',
+        'code_hash',
+        'expires_at',
+        'attempts',
+        'last_sent_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'last_seen_at' => 'datetime',
+            'expires_at' => 'datetime',
+            'last_sent_at' => 'datetime',
         ];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at->isPast();
     }
 }

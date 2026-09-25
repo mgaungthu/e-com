@@ -27,6 +27,10 @@ abstract class ProductRequest extends FormRequest
                 ? $this->input('sale_price')
                 : null,
 
+            'restock_eta' => $this->filled('restock_eta')
+                ? $this->input('restock_eta')
+                : null,
+
             'short_description' => $this->filled('short_description')
                 ? $this->input('short_description')
                 : null,
@@ -91,6 +95,11 @@ abstract class ProductRequest extends FormRequest
                 'required',
                 'integer',
                 'min:0',
+            ],
+
+            'restock_eta' => [
+                'nullable',
+                'date',
             ],
 
             'low_stock_threshold' => [
@@ -183,6 +192,8 @@ abstract class ProductRequest extends FormRequest
 
             'stock_quantity.required' => 'The stock quantity field is required.',
 
+            'restock_eta.date' => 'The expected restock date must be a valid date.',
+
             'low_stock_threshold.required' => 'The low stock threshold field is required.',
 
             'images.max' => 'A product can have at most 10 images.',
@@ -201,6 +212,6 @@ abstract class ProductRequest extends FormRequest
             'success' => false,
             'message' => 'Validation failed.',
             'errors' => $validator->errors(),
-        ], 422), );
+        ], 422));
     }
 }
