@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "VHU7VGY5Y9.com.burmeseshave.club"
+        ],
+        "components": [
+          {
+            "/": "/products/*",
+            "comment": "Open Burmese Shave Club product detail links in the app"
+          }
+        ]
+      }
+    ]
+  }
+}

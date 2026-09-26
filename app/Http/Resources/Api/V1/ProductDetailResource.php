@@ -49,6 +49,7 @@ class ProductDetailResource extends JsonResource
 
             'is_new_arrival' => (bool) $this->is_new_arrival,
             'is_promotion' => (bool) $this->is_promotion,
+            'is_favourite' => (bool) ($this->is_favourite ?? false),
 
             'image_url' => $this->image_url
                 ?? ($this->image_path

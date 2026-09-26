@@ -42,7 +42,11 @@ class ProductController extends Controller
 
         $perPage = (int) ($validated['per_page'] ?? 15);
 
-        $products = Product::query()
+        $products = $this
+            ->withFavouriteState(
+                Product::query(),
+                $request,
+            )
             ->where('is_active', true)
             ->with([
                 'category:id,name,slug',
@@ -82,7 +86,11 @@ class ProductController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return $this->paginatedResponse(paginator: $products, resourceClass: ProductListResource::class, message: 'Products retrieved successfully.');
+        return $this->paginatedResponse(
+            paginator: $products,
+            resourceClass: ProductListResource::class,
+            message: 'Products retrieved successfully.',
+        );
     }
 
     public function featured(Request $request): JsonResponse
@@ -93,7 +101,11 @@ class ProductController extends Controller
 
         $limit = (int) ($validated['limit'] ?? 10);
 
-        $products = Product::query()
+        $products = $this
+            ->withFavouriteState(
+                Product::query(),
+                $request,
+            )
             ->where('is_active', true)
             ->where('is_featured', true)
             ->with([
@@ -104,14 +116,23 @@ class ProductController extends Controller
             ->limit($limit)
             ->get();
 
-        return $this->successResponse(data: [
-            'products' => ProductListResource::collection($products),
-        ], message: 'Featured products retrieved successfully.', );
+        return $this->successResponse(
+            data: [
+                'products' => ProductListResource::collection($products),
+            ],
+            message: 'Featured products retrieved successfully.',
+        );
     }
 
-    public function show(string $slug): JsonResponse
-    {
-        $product = Product::query()
+    public function show(
+        Request $request,
+        string $slug,
+    ): JsonResponse {
+        $product = $this
+            ->withFavouriteState(
+                Product::query(),
+                $request,
+            )
             ->where('slug', $slug)
             ->where('is_active', true)
             ->with([
@@ -121,35 +142,49 @@ class ProductController extends Controller
             ->first();
 
         if (! $product) {
-            return $this->errorResponse(message: 'Product not found.', status: 404);
+            return $this->errorResponse(
+                message: 'Product not found.',
+                status: 404,
+            );
         }
 
-        return $this->successResponse(data: [
-            'product' => new ProductDetailResource($product),
-        ], message: 'Product retrieved successfully.', );
+        return $this->successResponse(
+            data: [
+                'product' => new ProductDetailResource($product),
+            ],
+            message: 'Product retrieved successfully.',
+        );
     }
 
-    private function paginatedResponse(mixed $paginator, string $resourceClass, string $message): JsonResponse
-    {
-        return $this->successResponse(data: [
-            'products' => $resourceClass::collection($paginator->getCollection()),
+    private function paginatedResponse(
+        mixed $paginator,
+        string $resourceClass,
+        string $message,
+    ): JsonResponse {
+        return $this->successResponse(
+            data: [
+                'products' => $resourceClass::collection(
+                    $paginator->getCollection(),
+                ),
 
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'from' => $paginator->firstItem(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'to' => $paginator->lastItem(),
-                'total' => $paginator->total(),
-            ],
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'from' => $paginator->firstItem(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'to' => $paginator->lastItem(),
+                    'total' => $paginator->total(),
+                ],
 
-            'links' => [
-                'first' => $paginator->url(1),
-                'last' => $paginator->url($paginator->lastPage()),
-                'prev' => $paginator->previousPageUrl(),
-                'next' => $paginator->nextPageUrl(),
+                'links' => [
+                    'first' => $paginator->url(1),
+                    'last' => $paginator->url($paginator->lastPage()),
+                    'prev' => $paginator->previousPageUrl(),
+                    'next' => $paginator->nextPageUrl(),
+                ],
             ],
-        ], message: $message, );
+            message: $message,
+        );
     }
 
     public function newArrivals(Request $request): JsonResponse
@@ -160,7 +195,11 @@ class ProductController extends Controller
 
         $limit = (int) ($validated['limit'] ?? 10);
 
-        $products = Product::query()
+        $products = $this
+            ->withFavouriteState(
+                Product::query(),
+                $request,
+            )
             ->where('is_active', true)
             ->where('is_new_arrival', true)
             ->with([
@@ -171,9 +210,12 @@ class ProductController extends Controller
             ->limit($limit)
             ->get();
 
-        return $this->successResponse(data: [
-            'products' => ProductListResource::collection($products),
-        ], message: 'New arrival products retrieved successfully.', );
+        return $this->successResponse(
+            data: [
+                'products' => ProductListResource::collection($products),
+            ],
+            message: 'New arrival products retrieved successfully.',
+        );
     }
 
     public function promotions(Request $request): JsonResponse
@@ -184,7 +226,11 @@ class ProductController extends Controller
 
         $limit = (int) ($validated['limit'] ?? 10);
 
-        $products = Product::query()
+        $products = $this
+            ->withFavouriteState(
+                Product::query(),
+                $request,
+            )
             ->where('is_active', true)
             ->where('is_promotion', true)
             ->with([
@@ -195,8 +241,31 @@ class ProductController extends Controller
             ->limit($limit)
             ->get();
 
-        return $this->successResponse(data: [
-            'products' => ProductListResource::collection($products),
-        ], message: 'Promotion products retrieved successfully.', );
+        return $this->successResponse(
+            data: [
+                'products' => ProductListResource::collection($products),
+            ],
+            message: 'Promotion products retrieved successfully.',
+        );
+    }
+
+    private function withFavouriteState(
+        Builder $query,
+        Request $request,
+    ): Builder {
+        $user = $request->user('sanctum');
+
+        if (! $user) {
+            return $query;
+        }
+
+        return $query->withExists([
+            'favouritedByUsers as is_favourite' =>
+                fn (Builder $favouriteQuery) =>
+                    $favouriteQuery->where(
+                        'users.id',
+                        $user->getKey(),
+                    ),
+        ]);
     }
 }

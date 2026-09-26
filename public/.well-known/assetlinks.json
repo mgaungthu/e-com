@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.burmeseshave.club",
+      "sha256_cert_fingerprints": [
+        "45:F6:A8:34:0B:1C:E0:6A:81:91:37:F2:19:EA:22:DD:C7:65:1C:A1:F8:82:83:03:E8:E9:D7:DC:47:77:C5:99"
+      ]
+    }
+  }
+]
