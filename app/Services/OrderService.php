@@ -12,30 +12,47 @@ use Illuminate\Support\Facades\DB;
 
 class OrderService
 {
-    public function __construct(private readonly OrderInventoryService $orderInventoryService) {}
+    public function __construct(
+        private readonly OrderInventoryService $orderInventoryService
+    ) {}
 
-    public function transitionStatus(Order $order, OrderStatus $targetStatus, User $actor, ?string $note = null): Order
-    {
-        return DB::transaction(function () use ($order, $targetStatus, $actor, $note): Order {
+    public function transitionStatus(
+        Order $order,
+        OrderStatus $targetStatus,
+        User $actor,
+        ?string $note = null
+    ): Order {
+        return DB::transaction(function () use (
+            $order,
+            $targetStatus,
+            $actor,
+            $note
+        ): Order {
             $lockedOrder = Order::query()
                 ->with('items')
                 ->lockForUpdate()
                 ->findOrFail($order->id);
+
             $currentStatus = $lockedOrder->status;
 
             if (! $currentStatus->canTransitionTo($targetStatus)) {
-                throw new DomainException("Order cannot move from {$currentStatus->value} to {$targetStatus->value}.");
+                throw new DomainException(
+                    "Order cannot move from {$currentStatus->value} to {$targetStatus->value}."
+                );
             }
 
             if (
                 $targetStatus === OrderStatus::Confirmed &&
                 $lockedOrder->items->isEmpty()
             ) {
-                throw new DomainException('An order must contain at least one item before confirmation.');
+                throw new DomainException(
+                    'An order must contain at least one item before confirmation.'
+                );
             }
 
             if ($targetStatus === OrderStatus::Cancelled) {
-                $this->orderInventoryService->restoreForCancelledOrder($lockedOrder, $actor);
+                $this->orderInventoryService
+                    ->restoreForCancelledOrder($lockedOrder, $actor);
             }
 
             $lockedOrder->update([
@@ -50,7 +67,10 @@ class OrderService
                 'note' => $note,
             ]);
 
-            if ($targetStatus === OrderStatus::Delivered && $lockedOrder->user_id) {
+            if (
+                $targetStatus === OrderStatus::Delivered &&
+                $lockedOrder->user_id
+            ) {
                 $this->syncCustomerProfile($lockedOrder->user_id);
             }
 
@@ -58,21 +78,33 @@ class OrderService
         });
     }
 
-    public function transitionPayment(Order $order, PaymentStatus $targetStatus): Order
-    {
-        return DB::transaction(function () use ($order, $targetStatus): Order {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+    public function transitionPayment(
+        Order $order,
+        PaymentStatus $targetStatus
+    ): Order {
+        return DB::transaction(function () use (
+            $order,
+            $targetStatus
+        ): Order {
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
+
             $currentStatus = $lockedOrder->payment_status;
 
             if (! $currentStatus->canTransitionTo($targetStatus)) {
-                throw new DomainException("Payment cannot move from {$currentStatus->value} to {$targetStatus->value}.");
+                throw new DomainException(
+                    "Payment cannot move from {$currentStatus->value} to {$targetStatus->value}."
+                );
             }
 
             if (
                 $lockedOrder->status === OrderStatus::Cancelled &&
                 $targetStatus === PaymentStatus::Paid
             ) {
-                throw new DomainException('A cancelled order cannot be marked as paid.');
+                throw new DomainException(
+                    'A cancelled order cannot be marked as paid.'
+                );
             }
 
             $lockedOrder->update([
@@ -97,11 +129,12 @@ class OrderService
     {
         return match ($status) {
             OrderStatus::Confirmed => 'confirmed_at',
-            OrderStatus::Processing => 'processing_at',
-            OrderStatus::Shipped => 'shipped_at',
+            OrderStatus::Delivering => 'processing_at',
             OrderStatus::Delivered => 'delivered_at',
             OrderStatus::Cancelled => 'cancelled_at',
-            OrderStatus::Pending => throw new DomainException('Pending is not a transition target.'),
+            OrderStatus::Pending => throw new DomainException(
+                'Pending is not a transition target.'
+            ),
         };
     }
 
@@ -111,17 +144,26 @@ class OrderService
             ->where('user_id', $customerId)
             ->where('status', OrderStatus::Delivered);
 
-        $summary = (clone $deliveredOrders)->selectRaw('COUNT(*) as order_count, MIN(delivered_at) as first_order_at, MAX(delivered_at) as last_order_at')->first();
+        $summary = (clone $deliveredOrders)
+            ->selectRaw(
+                'COUNT(*) as order_count, MIN(delivered_at) as first_order_at, MAX(delivered_at) as last_order_at'
+            )
+            ->first();
 
         $totalSpent = (clone $deliveredOrders)
             ->where('payment_status', PaymentStatus::Paid)
             ->sum('grand_total');
 
-        CustomerProfile::query()->updateOrCreate(['user_id' => $customerId], [
-            'total_orders' => (int) ($summary?->order_count ?? 0),
-            'total_spent' => $totalSpent,
-            'first_order_at' => $summary?->first_order_at,
-            'last_order_at' => $summary?->last_order_at,
-        ], );
+        CustomerProfile::query()->updateOrCreate(
+            [
+                'user_id' => $customerId,
+            ],
+            [
+                'total_orders' => (int) ($summary?->order_count ?? 0),
+                'total_spent' => $totalSpent,
+                'first_order_at' => $summary?->first_order_at,
+                'last_order_at' => $summary?->last_order_at,
+            ],
+        );
     }
 }

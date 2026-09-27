@@ -66,27 +66,15 @@
                             width="170"
                             style="
                                 display: block;
-                                width: 170px;
-                                max-width: 170px;
+                                width: 150px;
+                                max-width: 150px;
                                 height: auto;
                                 margin: 0 auto;
                                 border: 0;
                             "
                         >
 
-                        <div
-                            style="
-                                margin-top: 14px;
-                                color: #FFFCF2;
-                                font-size: 11px;
-                                line-height: 18px;
-                                font-weight: 700;
-                                letter-spacing: 1.5px;
-                                text-transform: uppercase;
-                            "
-                        >
-                            Payment Confirmed
-                        </div>
+                        
                     </td>
                 </tr>
 

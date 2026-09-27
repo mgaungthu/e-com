@@ -66,8 +66,8 @@
                             width="170"
                             style="
                                 display: block;
-                                width: 170px;
-                                max-width: 170px;
+                                width: 150px;
+                                max-width: 150px;
                                 height: auto;
                                 margin: 0 auto;
                                 border: 0;

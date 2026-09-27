@@ -50,11 +50,11 @@ function formatDate(
 }
 
 function formatStatus(value: string): string {
-    return value
-        .replaceAll("_", " ")
-        .replace(/\b\w/g, (character) =>
-            character.toUpperCase(),
-        );
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase(),
+    );
 }
 
 function formatPaymentMethod(
