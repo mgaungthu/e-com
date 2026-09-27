@@ -9,7 +9,7 @@
     >
 
     <title>
-        Order Received - {{ $order->order_number }}
+        New Order Received - {{ $order->order_number }}
     </title>
 </head>
 
@@ -23,16 +23,20 @@
     "
 >
     @php
+        $customer = $order->customer;
+
         $shipping = $order->shipping_address ?? [];
+
         $payment = $order->latestPayment;
 
         $recipientName =
             $shipping['recipient_name']
-            ?? $order->customer?->name
+            ?? $customer?->name
             ?? 'Customer';
 
         $paymentMethodName =
             $payment?->method_name
+            ?? $payment?->paymentMethod?->name
             ?? $order->payment_method
             ?? 'Payment';
 
@@ -50,6 +54,16 @@
             || str_contains(
                 strtolower($paymentMethodName),
                 'cash on delivery'
+            );
+
+        $paymentStatus = $isCashOnDelivery
+            ? 'Cash on Delivery'
+            : ucfirst(
+                str_replace(
+                    '_',
+                    ' ',
+                    (string) ($payment?->status ?? 'pending')
+                )
             );
 
         $addressParts = array_filter([
@@ -142,12 +156,12 @@
                                     text-transform: uppercase;
                                 "
                             >
-                                Order Confirmation
+                                New Order Received
                             </div>
                         </td>
                     </tr>
 
-                    {{-- Main content --}}
+                    {{-- Content --}}
                     <tr>
                         <td
                             style="
@@ -163,59 +177,21 @@
                                     color: #21191A;
                                 "
                             >
-                                Thank you, {{ $recipientName }}
+                                New order received
                             </h1>
 
-                            @if ($isCashOnDelivery)
-                                <p
-                                    style="
-                                        margin: 14px 0 0;
-                                        font-size: 14px;
-                                        line-height: 22px;
-                                        color: #8B8B95;
-                                    "
-                                >
-                                    We have received your order successfully.
-                                </p>
+                            <p
+                                style="
+                                    margin: 12px 0 0;
+                                    font-size: 14px;
+                                    line-height: 22px;
+                                    color: #8B8B95;
+                                "
+                            >
+                                A customer has placed a new order on Burmese Shave Club.
+                            </p>
 
-                                <p
-                                    style="
-                                        margin: 8px 0 0;
-                                        font-size: 14px;
-                                        line-height: 22px;
-                                        color: #8B8B95;
-                                    "
-                                >
-                                    You selected Cash on Delivery. Payment will be
-                                    collected when your order is delivered.
-                                </p>
-                            @else
-                                <p
-                                    style="
-                                        margin: 14px 0 0;
-                                        font-size: 14px;
-                                        line-height: 22px;
-                                        color: #8B8B95;
-                                    "
-                                >
-                                    We have received your order and payment proof.
-                                </p>
-
-                                <p
-                                    style="
-                                        margin: 8px 0 0;
-                                        font-size: 14px;
-                                        line-height: 22px;
-                                        color: #8B8B95;
-                                    "
-                                >
-                                    Your payment is currently pending verification.
-                                    We will notify you again once your payment has
-                                    been confirmed.
-                                </p>
-                            @endif
-
-                            {{-- Order info --}}
+                            {{-- Order Info --}}
                             <table
                                 width="100%"
                                 cellpadding="0"
@@ -238,7 +214,6 @@
                                         <div
                                             style="
                                                 font-size: 11px;
-                                                line-height: 16px;
                                                 font-weight: 700;
                                                 color: #8A1B28;
                                                 text-transform: uppercase;
@@ -252,7 +227,6 @@
                                             style="
                                                 margin-top: 5px;
                                                 font-size: 17px;
-                                                line-height: 24px;
                                                 font-weight: 700;
                                                 color: #21191A;
                                             "
@@ -270,7 +244,6 @@
                                         <div
                                             style="
                                                 font-size: 11px;
-                                                line-height: 16px;
                                                 font-weight: 700;
                                                 color: #8A1B28;
                                                 text-transform: uppercase;
@@ -284,13 +257,69 @@
                                             style="
                                                 margin-top: 5px;
                                                 font-size: 13px;
-                                                line-height: 20px;
                                                 font-weight: 600;
                                                 color: #21191A;
                                             "
                                         >
                                             {{ $order->created_at?->format('d M Y, h:i A') }}
                                         </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {{-- Customer --}}
+                            <h2
+                                style="
+                                    margin: 32px 0 0;
+                                    font-size: 15px;
+                                    line-height: 22px;
+                                    font-weight: 700;
+                                    color: #21191A;
+                                "
+                            >
+                                Customer
+                            </h2>
+
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                role="presentation"
+                                style="
+                                    margin-top: 12px;
+                                    background-color: #F5F5F4;
+                                    border: 1px solid #E8E5E1;
+                                    border-radius: 12px;
+                                "
+                            >
+                                <tr>
+                                    <td
+                                        style="
+                                            padding: 18px;
+                                            font-size: 13px;
+                                            line-height: 21px;
+                                            color: #8B8B95;
+                                        "
+                                    >
+                                        <strong style="color: #21191A;">
+                                            {{ $customer?->name ?? $recipientName }}
+                                        </strong>
+
+                                        @if ($customer?->email)
+                                            <br>
+                                            {{ $customer->email }}
+                                        @endif
+
+                                        @if (! empty($shipping['phone']))
+                                            <br>
+                                            {{ $shipping['phone'] }}
+                                        @endif
+
+                                        @if (! empty($shipping['alternate_phone']))
+                                            <br>
+                                            {{ $shipping['alternate_phone'] }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>
@@ -343,7 +372,6 @@
                                                     style="
                                                         margin-top: 3px;
                                                         font-size: 11px;
-                                                        line-height: 16px;
                                                         color: #8B8B95;
                                                     "
                                                 >
@@ -355,7 +383,6 @@
                                                 style="
                                                     margin-top: 5px;
                                                     font-size: 12px;
-                                                    line-height: 18px;
                                                     color: #8B8B95;
                                                 "
                                             >
@@ -368,12 +395,10 @@
 
                                         <td
                                             align="right"
-                                            valign="middle"
                                             style="
                                                 padding: 15px 0 15px 16px;
                                                 border-bottom: 1px solid #E8E5E1;
                                                 font-size: 13px;
-                                                line-height: 20px;
                                                 font-weight: 700;
                                                 color: #21191A;
                                                 white-space: nowrap;
@@ -517,7 +542,6 @@
                                             padding-top: 16px;
                                             border-top: 1px solid #E8E5E1;
                                             font-size: 20px;
-                                            line-height: 26px;
                                             font-weight: 700;
                                             color: #8A1B28;
                                         "
@@ -564,11 +588,9 @@
                                         <div
                                             style="
                                                 font-size: 11px;
-                                                line-height: 16px;
                                                 font-weight: 700;
                                                 color: #8B8B95;
                                                 text-transform: uppercase;
-                                                letter-spacing: 0.6px;
                                             "
                                         >
                                             Payment Method
@@ -584,6 +606,19 @@
                                         >
                                             {{ $paymentMethodName }}
                                         </div>
+
+                                        @if ($payment?->reference_number)
+                                            <div
+                                                style="
+                                                    margin-top: 8px;
+                                                    font-size: 12px;
+                                                    color: #8B8B95;
+                                                "
+                                            >
+                                                Reference:
+                                                {{ $payment->reference_number }}
+                                            </div>
+                                        @endif
                                     </td>
 
                                     <td
@@ -595,11 +630,9 @@
                                         <div
                                             style="
                                                 font-size: 11px;
-                                                line-height: 16px;
                                                 font-weight: 700;
                                                 color: #8B8B95;
                                                 text-transform: uppercase;
-                                                letter-spacing: 0.6px;
                                             "
                                         >
                                             Status
@@ -613,11 +646,7 @@
                                                 color: #D89B16;
                                             "
                                         >
-                                            @if ($isCashOnDelivery)
-                                                Cash on Delivery
-                                            @else
-                                                Pending Verification
-                                            @endif
+                                            {{ $paymentStatus }}
                                         </div>
                                     </td>
                                 </tr>
@@ -658,11 +687,7 @@
                                             color: #8B8B95;
                                         "
                                     >
-                                        <strong
-                                            style="
-                                                color: #21191A;
-                                            "
-                                        >
+                                        <strong style="color: #21191A;">
                                             {{ $recipientName }}
                                         </strong>
 
@@ -678,7 +703,6 @@
 
                                         @if (count($addressParts) > 0)
                                             <br><br>
-
                                             {{ implode(', ', $addressParts) }}
                                         @endif
 
@@ -728,42 +752,6 @@
                                     {{ $order->notes }}
                                 </div>
                             @endif
-
-                            {{-- Info --}}
-                            <table
-                                width="100%"
-                                cellpadding="0"
-                                cellspacing="0"
-                                border="0"
-                                role="presentation"
-                                style="
-                                    width: 100%;
-                                    margin-top: 32px;
-                                    background-color: #FFF8F1;
-                                    border-left: 3px solid #8A1B28;
-                                    border-radius: 10px;
-                                "
-                            >
-                                <tr>
-                                    <td
-                                        style="
-                                            padding: 16px 18px;
-                                            font-size: 13px;
-                                            line-height: 21px;
-                                            color: #21191A;
-                                        "
-                                    >
-                                        @if ($isCashOnDelivery)
-                                            Payment will be collected when your order
-                                            is delivered. We will keep you updated as
-                                            your order progresses.
-                                        @else
-                                            We will send you another email after your
-                                            payment has been verified.
-                                        @endif
-                                    </td>
-                                </tr>
-                            </table>
                         </td>
                     </tr>
 
@@ -780,7 +768,6 @@
                             <div
                                 style="
                                     font-size: 12px;
-                                    line-height: 18px;
                                     font-weight: 600;
                                     color: #21191A;
                                 "
@@ -792,18 +779,16 @@
                                 style="
                                     margin-top: 5px;
                                     font-size: 11px;
-                                    line-height: 17px;
                                     color: #8B8B95;
                                 "
                             >
-                                Thank you for shopping with us.
+                                Admin Order Notification
                             </div>
 
                             <div
                                 style="
                                     margin-top: 8px;
                                     font-size: 10px;
-                                    line-height: 16px;
                                     color: #8B8B95;
                                 "
                             >

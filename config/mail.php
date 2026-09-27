@@ -35,6 +35,8 @@ return [
     |
     */
 
+    'admin_order_email' => env('ADMIN_ORDER_EMAIL'),
+
     'mailers' => [
 
         'smtp' => [
