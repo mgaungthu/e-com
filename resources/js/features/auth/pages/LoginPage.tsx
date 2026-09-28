@@ -35,11 +35,11 @@ export default function LoginPage() {
     );
 
     const [email, setEmail] = useState(
-        "admin@example.com",
+        "",
     );
 
     const [password, setPassword] = useState(
-        "password123",
+        "",
     );
 
     const [remember, setRemember] = useState(false);
