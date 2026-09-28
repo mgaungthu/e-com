@@ -30,6 +30,85 @@ class AuthApiTest extends TestCase
         return 'https://'.config('app.api_domain').'/v1/auth/'.$path;
     }
 
+    public function test_customer_can_update_profile_name_without_changing_other_account_fields(): void
+    {
+        $user = User::factory()->create(['first_name' => 'Old', 'last_name' => 'Name']);
+        $otherUser = User::factory()->create();
+        $originalEmail = $user->email;
+        $originalRole = $user->fresh()->role;
+
+        $this->actingAs($user, 'sanctum')
+            ->patchJson($this->authUrl('profile'), [
+                'first_name' => '  အောင်  ',
+                'last_name' => '  သူ  ',
+                'email' => 'changed@example.com',
+                'role' => 'admin',
+                'id' => $otherUser->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.user.name', 'အောင် သူ')
+            ->assertJsonPath('data.user.display_name', 'အောင် သူ')
+            ->assertJsonPath('data.user.first_name', 'အောင်')
+            ->assertJsonPath('data.user.last_name', 'သူ')
+            ->assertJsonPath('data.user.email', $originalEmail);
+
+        $this->assertSame('အောင် သူ', $user->fresh()->name);
+        $this->assertSame($originalRole, $user->fresh()->role);
+        $this->assertSame($otherUser->name, $otherUser->fresh()->name);
+        $this->getJson($this->authUrl('me'))->assertJsonPath('data.user.name', 'အောင် သူ');
+    }
+
+    public function test_profile_name_update_requires_authentication(): void
+    {
+        $this->patchJson($this->authUrl('profile'), ['first_name' => 'New', 'last_name' => 'Name'])
+            ->assertUnauthorized();
+    }
+
+    public function test_profile_name_update_rejects_invalid_names(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'sanctum');
+
+        foreach ([[], ['first_name' => '   '], ['first_name' => str_repeat('a', 101)], ['first_name' => ['invalid']]] as $payload) {
+            $this->patchJson($this->authUrl('profile'), $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('first_name');
+        }
+
+        $this->assertSame($user->name, $user->fresh()->name);
+    }
+
+    public function test_profile_name_update_allows_clearing_last_name(): void
+    {
+        $user = User::factory()->create(['first_name' => 'Old', 'last_name' => 'Name']);
+        $this->actingAs($user, 'sanctum');
+
+        foreach ([null, '', '   '] as $lastName) {
+            $this->patchJson($this->authUrl('profile'), [
+                'first_name' => 'Aung',
+                'last_name' => $lastName,
+            ])->assertOk()
+                ->assertJsonPath('data.user.last_name', null)
+                ->assertJsonPath('data.user.name', 'Aung')
+                ->assertJsonPath('data.user.display_name', 'Aung');
+        }
+
+        $this->assertNull($user->fresh()->last_name);
+    }
+
+    public function test_profile_name_update_validates_last_name(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'sanctum');
+
+        foreach ([str_repeat('a', 101), ['invalid']] as $lastName) {
+            $this->patchJson($this->authUrl('profile'), [
+                'first_name' => 'Aung',
+                'last_name' => $lastName,
+            ])->assertUnprocessable()->assertJsonValidationErrors('last_name');
+        }
+    }
+
     public function test_customer_can_register(): void
     {
         $response = $this->postJson($this->authUrl('register'), [

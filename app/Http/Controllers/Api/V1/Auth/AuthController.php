@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Auth\DeleteAccountRequest;
 use App\Http\Requests\Api\V1\Auth\GoogleLoginRequest;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
 use App\Http\Requests\Api\V1\Auth\RegisterRequest;
+use App\Http\Requests\Api\V1\Auth\UpdateProfileRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\User;
@@ -467,6 +468,27 @@ class AuthController extends Controller
                 'requires_email_verification' =>
                     ! $user->hasVerifiedEmail(),
             ],
+        );
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $firstName = $validated['first_name'];
+        $lastName = $validated['last_name'] ?? null;
+        $name = trim($firstName.' '.($lastName ?? ''));
+        $user = $request->user();
+
+        $user->update([
+            'name' => $name,
+            'display_name' => $name,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+        ]);
+
+        return $this->successResponse(
+            data: ['user' => new UserResource($user->fresh())],
+            message: 'Account information updated successfully.',
         );
     }
 

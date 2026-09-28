@@ -74,6 +74,7 @@ Route::domain(config('app.api_domain'))->group(function () {
                 Route::middleware('auth:sanctum')
                     ->group(function () {
                         Route::get('/me', [AuthController::class, 'me']);
+                        Route::patch('/profile', [AuthController::class, 'updateProfile'])->middleware('throttle:10,1');
 
                         Route::post('/email/verify', [
                             EmailVerificationController::class,
