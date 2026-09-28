@@ -12,12 +12,10 @@ class CheckoutCalculator
 {
     /**
      * @param  Collection<int, CartItem>  $items
-     * @return array{subtotal: float, discount_total: float, shipping_total: float, tax_rate: float, tax_total: float, grand_total: float, lines: array<int, array{cart_item: CartItem, unit_price: float, line_total: float}>}
+     * @return array{subtotal: float, discount_percentage: float, discount_total: float, total: float, shipping_total: float, tax_rate: float, tax_total: float, grand_total: float, lines: array<int, array{cart_item: CartItem, unit_price: float, line_total: float}>}
      */
-    public function calculate(
-        Collection $items,
-        ?Address $shippingAddress = null,
-    ): array {
+    public function calculate(Collection $items, ?Address $shippingAddress = null): array
+    {
         $subtotal = 0.0;
         $lines = [];
 
@@ -35,34 +33,51 @@ class CheckoutCalculator
         }
 
         $subtotal = round($subtotal, 2);
-        $discountTotal = 0.0;
 
-        $shippingTotal = $this->resolveShippingFee(
-            $shippingAddress,
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | Checkout Discount
+        |--------------------------------------------------------------------------
+        |
+        | Discount is controlled from the existing settings table.
+        |
+        | checkout_discount_enabled:
+        |   false / 0 -> no checkout discount
+        |   true / 1  -> apply checkout_discount_percent
+        |
+        | The discount is applied to the calculated product subtotal before
+        | shipping and tax.
+        |--------------------------------------------------------------------------
+        */
+
+        $discountEnabled = $this->settingBoolean('checkout_discount_enabled');
+
+        $discountPercentage = $discountEnabled
+            ? min(100, max(0, $this->settingDecimal('checkout_discount_percent')))
+            : 0.0;
+
+        $discountTotal = round($subtotal * ($discountPercentage / 100), 2);
+
+        $total = round(max(0, $subtotal - $discountTotal), 2);
+
+        $shippingTotal = $this->resolveShippingFee($shippingAddress);
 
         $taxRate = $this->settingDecimal('tax_rate');
 
-        $taxTotal = round(
-            max(0, $subtotal - $discountTotal)
-                * ($taxRate / 100),
-            2,
-        );
+        $taxTotal = round($total * ($taxRate / 100), 2);
 
         return [
             'subtotal' => $subtotal,
+            'discount_percentage' => $discountPercentage,
             'discount_total' => $discountTotal,
+            'total' => $total,
             'shipping_total' => $shippingTotal,
             'tax_rate' => $taxRate,
             'tax_total' => $taxTotal,
 
-            'grand_total' => round(
-                $subtotal
-                    - $discountTotal
+            'grand_total' => round($total
                     + $shippingTotal
-                    + $taxTotal,
-                2,
-            ),
+                    + $taxTotal, 2, ),
 
             'lines' => $lines,
         ];
@@ -89,31 +104,23 @@ class CheckoutCalculator
     |--------------------------------------------------------------------------
     */
 
-    private function resolveShippingFee(
-        ?Address $shippingAddress,
-    ): float {
+    private function resolveShippingFee(?Address $shippingAddress): float
+    {
         if (
             ! $shippingAddress
             || ! $shippingAddress->location_id
         ) {
-            return $this->settingDecimal(
-                'shipping_fee',
-            );
+            return $this->settingDecimal('shipping_fee');
         }
 
         $location = Location::query()
-            ->find(
-                $shippingAddress->location_id,
-            );
+            ->find($shippingAddress->location_id);
 
         while ($location) {
             if (
                 $location->shipping_fee !== null
             ) {
-                return round(
-                    (float) $location->shipping_fee,
-                    2,
-                );
+                return round((float) $location->shipping_fee, 2);
             }
 
             if (
@@ -123,19 +130,14 @@ class CheckoutCalculator
             }
 
             $location = Location::query()
-                ->find(
-                    $location->parent_id,
-                );
+                ->find($location->parent_id);
         }
 
-        return $this->settingDecimal(
-            'shipping_fee',
-        );
+        return $this->settingDecimal('shipping_fee');
     }
 
-    private function resolveProductPrice(
-        $product,
-    ): float {
+    private function resolveProductPrice($product): float
+    {
         $price = (float) $product->price;
 
         $salePrice =
@@ -150,9 +152,8 @@ class CheckoutCalculator
                 : $price;
     }
 
-    private function settingDecimal(
-        string $key,
-    ): float {
+    private function settingDecimal(string $key): float
+    {
         $value = Setting::query()
             ->where('key', $key)
             ->value('value');
@@ -160,10 +161,16 @@ class CheckoutCalculator
         return $value !== null
             && $value !== ''
             && is_numeric($value)
-                ? round(
-                    (float) $value,
-                    2,
-                )
+                ? round((float) $value, 2)
                 : 0.0;
+    }
+
+    private function settingBoolean(string $key): bool
+    {
+        $value = Setting::query()
+            ->where('key', $key)
+            ->value('value');
+
+        return filter_var($value, FILTER_VALIDATE_BOOL);
     }
 }

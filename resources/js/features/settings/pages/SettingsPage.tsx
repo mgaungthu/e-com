@@ -2,10 +2,17 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { CheckCircle2, Package, Settings2, ShoppingCart, Store } from "lucide-react";
+import {
+    CheckCircle2,
+    Package,
+    Settings2,
+    ShoppingCart,
+    Store,
+} from "lucide-react";
 
 import PageHeader from "@/components/PageHeader";
 import {
+    CheckboxCard,
     FormActions,
     FormErrorAlert,
     FormField,
@@ -33,24 +40,32 @@ const defaults: Settings = {
     default_low_stock_threshold: 5,
     tax_rate: 0,
     shipping_fee: 0,
+    checkout_discount_enabled: false,
+    checkout_discount_percent: 20,
 };
 
 export default function SettingsPage() {
     const queryClient = useQueryClient();
+
     const query = useQuery({
         queryKey: ["settings"],
         queryFn: settingApi.get,
     });
+
     const [values, setValues] = useState<Settings>(defaults);
+
     const [validationErrors, setValidationErrors] = useState<
         Record<string, string[]>
     >({});
+
     const [formError, setFormError] = useState<string | null>(null);
 
     const mutation = useMutation({
         mutationFn: settingApi.update,
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["settings"] });
+            await queryClient.invalidateQueries({
+                queryKey: ["settings"],
+            });
         },
     });
 
@@ -64,16 +79,27 @@ export default function SettingsPage() {
         key: K,
         value: Settings[K],
     ) => {
-        setValues((current) => ({ ...current, [key]: value }));
-        setValidationErrors((current) => ({ ...current, [key]: [] }));
+        setValues((current) => ({
+            ...current,
+            [key]: value,
+        }));
+
+        setValidationErrors((current) => ({
+            ...current,
+            [key]: [],
+        }));
+
         setFormError(null);
     };
 
     const fieldError = (key: keyof Settings) =>
         validationErrors[key]?.[0] ?? null;
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(
+        event: FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
+
         setValidationErrors({});
         setFormError(null);
 
@@ -81,15 +107,21 @@ export default function SettingsPage() {
             await mutation.mutateAsync(values);
         } catch (error) {
             if (axios.isAxiosError<ValidationResponse>(error)) {
-                setValidationErrors(error.response?.data.errors ?? {});
+                setValidationErrors(
+                    error.response?.data.errors ?? {},
+                );
+
                 setFormError(
                     error.response?.data.message ??
                         "Unable to save settings. Please check the form.",
                 );
+
                 return;
             }
 
-            setFormError("Unable to save settings. Please try again.");
+            setFormError(
+                "Unable to save settings. Please try again.",
+            );
         }
     }
 
@@ -107,6 +139,7 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium text-red-700">
                     Unable to load settings.
                 </p>
+
                 <button
                     type="button"
                     onClick={() => void query.refetch()}
@@ -125,7 +158,11 @@ export default function SettingsPage() {
                 description="Configure your store information, commerce rules, and inventory defaults."
             />
 
-            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+            <form
+                onSubmit={handleSubmit}
+                className="space-y-6"
+                noValidate
+            >
                 <FormErrorAlert message={formError} />
 
                 {mutation.isSuccess && !formError ? (
@@ -151,7 +188,10 @@ export default function SettingsPage() {
                             id="store_name"
                             value={values.store_name}
                             onChange={(event) =>
-                                update("store_name", event.target.value)
+                                update(
+                                    "store_name",
+                                    event.target.value,
+                                )
                             }
                             disabled={mutation.isPending}
                             placeholder="Myanmar Store"
@@ -170,7 +210,10 @@ export default function SettingsPage() {
                             id="timezone"
                             value={values.timezone}
                             onChange={(event) =>
-                                update("timezone", event.target.value)
+                                update(
+                                    "timezone",
+                                    event.target.value,
+                                )
                             }
                             disabled={mutation.isPending}
                             placeholder="Asia/Yangon"
@@ -188,7 +231,10 @@ export default function SettingsPage() {
                             type="email"
                             value={values.support_email}
                             onChange={(event) =>
-                                update("support_email", event.target.value)
+                                update(
+                                    "support_email",
+                                    event.target.value,
+                                )
                             }
                             disabled={mutation.isPending}
                             placeholder="support@example.com"
@@ -206,7 +252,10 @@ export default function SettingsPage() {
                             type="tel"
                             value={values.support_phone}
                             onChange={(event) =>
-                                update("support_phone", event.target.value)
+                                update(
+                                    "support_phone",
+                                    event.target.value,
+                                )
                             }
                             disabled={mutation.isPending}
                             placeholder="09 123 456 789"
@@ -217,7 +266,7 @@ export default function SettingsPage() {
 
                 <FormSection
                     title="Commerce"
-                    description="Order numbering, tax, currency, and delivery charges."
+                    description="Order numbering, tax, currency, delivery charges, and checkout discount."
                     icon={<ShoppingCart size={20} />}
                     contentClassName="grid gap-5 p-5 md:grid-cols-2"
                 >
@@ -272,7 +321,10 @@ export default function SettingsPage() {
                             suffix="%"
                             value={values.tax_rate}
                             onChange={(event) =>
-                                update("tax_rate", Number(event.target.value))
+                                update(
+                                    "tax_rate",
+                                    Number(event.target.value),
+                                )
                             }
                             disabled={mutation.isPending}
                             error={fieldError("tax_rate")}
@@ -302,6 +354,60 @@ export default function SettingsPage() {
                             className="pr-16"
                         />
                     </FormField>
+
+                    <CheckboxCard
+                        name="checkout_discount_enabled"
+                        title="Enable checkout discount"
+                        description="Apply the configured discount percentage to the checkout subtotal."
+                        checked={
+                            values.checkout_discount_enabled
+                        }
+                        onChange={(checked) =>
+                            update(
+                                "checkout_discount_enabled",
+                                checked,
+                            )
+                        }
+                        disabled={mutation.isPending}
+                        error={fieldError(
+                            "checkout_discount_enabled",
+                        )}
+                        className="md:col-span-2"
+                    />
+
+                    <FormField
+                        label="Discount percentage"
+                        htmlFor="checkout_discount_percent"
+                        required
+                        helperText="This percentage will be applied to the checkout subtotal while the discount is enabled."
+                        error={fieldError(
+                            "checkout_discount_percent",
+                        )}
+                    >
+                        <NumberInput
+                            id="checkout_discount_percent"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            suffix="%"
+                            value={
+                                values.checkout_discount_percent
+                            }
+                            onChange={(event) =>
+                                update(
+                                    "checkout_discount_percent",
+                                    Number(event.target.value),
+                                )
+                            }
+                            disabled={
+                                mutation.isPending ||
+                                !values.checkout_discount_enabled
+                            }
+                            error={fieldError(
+                                "checkout_discount_percent",
+                            )}
+                        />
+                    </FormField>
                 </FormSection>
 
                 <FormSection
@@ -314,14 +420,18 @@ export default function SettingsPage() {
                         htmlFor="default_low_stock_threshold"
                         required
                         helperText="Products at or below this quantity will be marked as low stock."
-                        error={fieldError("default_low_stock_threshold")}
+                        error={fieldError(
+                            "default_low_stock_threshold",
+                        )}
                         className="max-w-xl"
                     >
                         <NumberInput
                             id="default_low_stock_threshold"
                             min="0"
                             step="1"
-                            value={values.default_low_stock_threshold}
+                            value={
+                                values.default_low_stock_threshold
+                            }
                             onChange={(event) =>
                                 update(
                                     "default_low_stock_threshold",

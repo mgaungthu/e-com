@@ -23,7 +23,10 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly CheckoutCalculator $checkoutCalculator, private readonly OrderInventoryService $orderInventoryService) {}
+    public function __construct(
+        private readonly CheckoutCalculator $checkoutCalculator,
+        private readonly OrderInventoryService $orderInventoryService
+    ) {}
 
     /*
     |--------------------------------------------------------------------------
@@ -35,14 +38,111 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Status Filter
+        |--------------------------------------------------------------------------
+        */
+
+        $statusValue = $request
+            ->string('status')
+            ->trim()
+            ->toString();
+
+        $status = null;
+
+        if ($statusValue !== '') {
+            $status = OrderStatus::tryFrom(
+                $statusValue
+            );
+
+            if (! $status) {
+                throw ValidationException::withMessages([
+                    'status' => [
+                        'The selected order status is invalid.',
+                    ],
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Search
+        |--------------------------------------------------------------------------
+        |
+        | Numeric search:
+        |   - exact database order ID
+        |   - partial order number
+        |
+        | Text search:
+        |   - partial order number
+        |--------------------------------------------------------------------------
+        */
+
+        $search = $request
+            ->string('search')
+            ->trim()
+            ->toString();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Orders
+        |--------------------------------------------------------------------------
+        */
+
         $orders = Order::query()
-            ->where('user_id', $user->id)
+            ->where(
+                'user_id',
+                $user->id
+            )
+            ->when(
+                $status !== null,
+                fn ($query) => $query->where(
+                    'status',
+                    $status->value,
+                ),
+            )
+            ->when(
+                $search !== '',
+                function ($query) use ($search) {
+                    $query->where(
+                        function ($query) use ($search) {
+                            if (ctype_digit($search)) {
+                                $query
+                                    ->where(
+                                        'id',
+                                        (int) $search
+                                    )
+                                    ->orWhere(
+                                        'order_number',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+
+                                return;
+                            }
+
+                            $query->where(
+                                'order_number',
+                                'like',
+                                "%{$search}%"
+                            );
+                        }
+                    );
+                },
+            )
             ->with([
                 'items',
                 'latestPayment.paymentMethod',
             ])
             ->latest('id')
-            ->paginate(perPage: (int) $request->integer('per_page', 15));
+            ->paginate(
+                perPage: (int) $request->integer(
+                    'per_page',
+                    15,
+                ),
+            )
+            ->withQueryString();
 
         return response()->json([
             'success' => true,
@@ -59,11 +159,16 @@ class OrderController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function show(Request $request, Order $order): JsonResponse
-    {
+    public function show(
+        Request $request,
+        Order $order
+    ): JsonResponse {
         $user = $request->user();
 
-        if ($order->user_id !== $user->id) {
+        if (
+            $order->user_id !==
+            $user->id
+        ) {
             abort(404);
         }
 
@@ -87,11 +192,14 @@ class OrderController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(StoreOrderRequest $request): JsonResponse
-    {
-        $validated = $request->validated();
+    public function store(
+        StoreOrderRequest $request
+    ): JsonResponse {
+        $validated =
+            $request->validated();
 
-        $user = $request->user();
+        $user =
+            $request->user();
 
         /*
         |--------------------------------------------------------------------------
@@ -100,13 +208,19 @@ class OrderController extends Controller
         */
 
         $cart = Cart::query()
-            ->where('user_id', $user->id)
+            ->where(
+                'user_id',
+                $user->id
+            )
             ->with([
                 'items.product.category',
             ])
             ->first();
 
-        if (! $cart || $cart->items->isEmpty()) {
+        if (
+            ! $cart ||
+            $cart->items->isEmpty()
+        ) {
             throw ValidationException::withMessages([
                 'cart' => [
                     'Your cart is empty.',
@@ -120,9 +234,17 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $shippingAddress = Address::query()
-            ->where('user_id', $user->id)
-            ->find($validated['shipping_address_id']);
+        $shippingAddress =
+            Address::query()
+                ->where(
+                    'user_id',
+                    $user->id
+                )
+                ->find(
+                    $validated[
+                        'shipping_address_id'
+                    ]
+                );
 
         if (! $shippingAddress) {
             throw ValidationException::withMessages([
@@ -138,9 +260,17 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $billingAddress = Address::query()
-            ->where('user_id', $user->id)
-            ->find($validated['billing_address_id']);
+        $billingAddress =
+            Address::query()
+                ->where(
+                    'user_id',
+                    $user->id
+                )
+                ->find(
+                    $validated[
+                        'billing_address_id'
+                    ]
+                );
 
         if (! $billingAddress) {
             throw ValidationException::withMessages([
@@ -156,9 +286,17 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $paymentMethod = PaymentMethod::query()
-            ->where('is_active', true)
-            ->find($validated['payment_method_id']);
+        $paymentMethod =
+            PaymentMethod::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->find(
+                    $validated[
+                        'payment_method_id'
+                    ]
+                );
 
         if (! $paymentMethod) {
             throw ValidationException::withMessages([
@@ -175,10 +313,12 @@ class OrderController extends Controller
         */
 
         $isCashOnDelivery =
-            $paymentMethod->type === 'cod';
+            $paymentMethod->type ===
+            'cod';
 
         $requiresPaymentProof =
-            (bool) $paymentMethod->requires_proof;
+            (bool) $paymentMethod
+                ->requires_proof;
 
         /*
         |--------------------------------------------------------------------------
@@ -204,12 +344,19 @@ class OrderController extends Controller
         $proofPath = null;
 
         if (
-            $requiresPaymentProof
-            && $request->hasFile('payment_proof')
+            $requiresPaymentProof &&
+            $request->hasFile(
+                'payment_proof'
+            )
         ) {
             $proofPath = $request
-                ->file('payment_proof')
-                ->store('payment-proofs', 'public');
+                ->file(
+                    'payment_proof'
+                )
+                ->store(
+                    'payment-proofs',
+                    'public'
+                );
         }
 
         /*
@@ -219,183 +366,281 @@ class OrderController extends Controller
         */
 
         try {
-            $order = DB::transaction(function () use ($user, $cart, $shippingAddress, $billingAddress, $paymentMethod, $validated, $proofPath) {
-                /*
-                |--------------------------------------------------------------------------
-                | Lock Cart
-                |--------------------------------------------------------------------------
-                */
+            $order = DB::transaction(
+                function () use (
+                    $user,
+                    $cart,
+                    $shippingAddress,
+                    $billingAddress,
+                    $paymentMethod,
+                    $validated,
+                    $proofPath
+                ) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Lock Cart
+                    |--------------------------------------------------------------------------
+                    */
 
-                $lockedCart = Cart::query()
-                    ->with('items')
-                    ->lockForUpdate()
-                    ->findOrFail($cart->id);
+                    $lockedCart =
+                        Cart::query()
+                            ->with(
+                                'items'
+                            )
+                            ->lockForUpdate()
+                            ->findOrFail(
+                                $cart->id
+                            );
 
-                if ($lockedCart->items->isEmpty()) {
-                    throw ValidationException::withMessages([
-                        'cart' => [
-                            'Your cart is empty.',
-                        ],
-                    ]);
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Validate Inventory
-                |--------------------------------------------------------------------------
-                */
-
-                $this->orderInventoryService
-                    ->lockAndValidateCartItems($lockedCart->items);
-
-                /*
-                |--------------------------------------------------------------------------
-                | Calculate Checkout
-                |--------------------------------------------------------------------------
-                */
-
-                $calculation = $this
-                    ->checkoutCalculator
-                    ->calculate($lockedCart->items, $shippingAddress);
-
-                /*
-                |--------------------------------------------------------------------------
-                | Create Order
-                |--------------------------------------------------------------------------
-                */
-
-                $order = Order::query()->create([
-                    'user_id' => $user->id,
-
-                    'shipping_address' => $this->addressSnapshot($shippingAddress),
-
-                    'billing_address' => $this->addressSnapshot($billingAddress),
-
-                    'status' => OrderStatus::Pending,
+                    if (
+                        $lockedCart
+                            ->items
+                            ->isEmpty()
+                    ) {
+                        throw ValidationException::withMessages([
+                            'cart' => [
+                                'Your cart is empty.',
+                            ],
+                        ]);
+                    }
 
                     /*
-                     * COD:
-                     * Payment has not yet been collected.
-                     *
-                     * E-Wallet:
-                     * Payment proof is waiting for verification.
-                     *
-                     * The current order-level PaymentStatus uses Pending
-                     * for both cases.
-                     */
-                    'payment_status' => PaymentStatus::Pending,
+                    |--------------------------------------------------------------------------
+                    | Validate Inventory
+                    |--------------------------------------------------------------------------
+                    */
 
-                    'payment_method' => $paymentMethod->code,
+                    $this
+                        ->orderInventoryService
+                        ->lockAndValidateCartItems(
+                            $lockedCart->items
+                        );
 
-                    'subtotal' => $calculation['subtotal'],
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Calculate Checkout
+                    |--------------------------------------------------------------------------
+                    */
 
-                    'discount_total' => $calculation['discount_total'],
+                    $calculation =
+                        $this
+                            ->checkoutCalculator
+                            ->calculate(
+                                $lockedCart->items,
+                                $shippingAddress
+                            );
 
-                    'shipping_total' => $calculation['shipping_total'],
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create Order
+                    |--------------------------------------------------------------------------
+                    */
 
-                    'tax_total' => $calculation['tax_total'],
+                    $order =
+                        Order::query()
+                            ->create([
+                                'user_id' =>
+                                    $user->id,
 
-                    'grand_total' => $calculation['grand_total'],
+                                'shipping_address' =>
+                                    $this
+                                        ->addressSnapshot(
+                                            $shippingAddress
+                                        ),
 
-                    'notes' => $validated['notes']
-                        ?? null,
-                ]);
+                                'billing_address' =>
+                                    $this
+                                        ->addressSnapshot(
+                                            $billingAddress
+                                        ),
 
-                /*
-                |--------------------------------------------------------------------------
-                | Create Order Items
-                |--------------------------------------------------------------------------
-                */
+                                'status' =>
+                                    OrderStatus::Pending,
 
-                foreach (
-                    $calculation['lines'] as $line
-                ) {
-                    $cartItem =
-                        $line['cart_item'];
+                                /*
+                                 * COD:
+                                 * Payment has not yet been collected.
+                                 *
+                                 * E-Wallet:
+                                 * Payment proof is waiting for verification.
+                                 *
+                                 * The current order-level PaymentStatus uses Pending
+                                 * for both cases.
+                                 */
+                                'payment_status' =>
+                                    PaymentStatus::Pending,
 
-                    $product =
-                        $cartItem->product;
+                                'payment_method' =>
+                                    $paymentMethod
+                                        ->code,
 
-                    OrderItem::query()->create([
-                        'order_id' => $order->id,
+                                'subtotal' =>
+                                    $calculation[
+                                        'subtotal'
+                                    ],
 
-                        'product_id' => $product->id,
+                                'discount_total' =>
+                                    $calculation[
+                                        'discount_total'
+                                    ],
 
-                        'product_name' => $product->name,
+                                'shipping_total' =>
+                                    $calculation[
+                                        'shipping_total'
+                                    ],
 
-                        'sku' => $product->sku,
+                                'tax_total' =>
+                                    $calculation[
+                                        'tax_total'
+                                    ],
 
-                        'unit_price' => $line['unit_price'],
+                                'grand_total' =>
+                                    $calculation[
+                                        'grand_total'
+                                    ],
 
-                        'quantity' => $cartItem->quantity,
+                                'notes' =>
+                                    $validated[
+                                        'notes'
+                                    ] ??
+                                    null,
+                            ]);
 
-                        'line_total' => $line['line_total'],
-                    ]);
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create Order Items
+                    |--------------------------------------------------------------------------
+                    */
+
+                    foreach (
+                        $calculation[
+                            'lines'
+                        ] as $line
+                    ) {
+                        $cartItem =
+                            $line[
+                                'cart_item'
+                            ];
+
+                        $product =
+                            $cartItem
+                                ->product;
+
+                        OrderItem::query()
+                            ->create([
+                                'order_id' =>
+                                    $order->id,
+
+                                'product_id' =>
+                                    $product->id,
+
+                                'product_name' =>
+                                    $product->name,
+
+                                'sku' =>
+                                    $product->sku,
+
+                                'unit_price' =>
+                                    $line[
+                                        'unit_price'
+                                    ],
+
+                                'quantity' =>
+                                    $cartItem
+                                        ->quantity,
+
+                                'line_total' =>
+                                    $line[
+                                        'line_total'
+                                    ],
+                            ]);
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Reserve Inventory
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $this
+                        ->orderInventoryService
+                        ->reserveForNewOrder(
+                            $order,
+                            $lockedCart->items,
+                            $user
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create Order Payment
+                    |--------------------------------------------------------------------------
+                    |
+                    | COD:
+                    |   status = pending
+                    |   proof_image_path = null
+                    |   submitted_at = null
+                    |
+                    | E-Wallet:
+                    |   status = submitted
+                    |   proof_image_path = uploaded proof
+                    |   submitted_at = now()
+                    |--------------------------------------------------------------------------
+                    */
+
+                    OrderPayment::query()
+                        ->create([
+                            'order_id' =>
+                                $order->id,
+
+                            'payment_method_id' =>
+                                $paymentMethod->id,
+
+                            'method_code' =>
+                                $paymentMethod->code,
+
+                            'method_name' =>
+                                $paymentMethod->name,
+
+                            'amount' =>
+                                $calculation[
+                                    'grand_total'
+                                ],
+
+                            'reference_number' =>
+                                $validated[
+                                    'payment_reference'
+                                ] ??
+                                null,
+
+                            'proof_image_path' =>
+                                $proofPath,
+
+                            'status' =>
+                                $paymentMethod->type ===
+                                'cod'
+                                    ? 'pending'
+                                    : 'submitted',
+
+                            'submitted_at' =>
+                                $paymentMethod->type ===
+                                'cod'
+                                    ? null
+                                    : now(),
+                        ]);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Clear Cart
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $lockedCart
+                        ->items()
+                        ->delete();
+
+                    return $order;
                 }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Reserve Inventory
-                |--------------------------------------------------------------------------
-                */
-
-                $this->orderInventoryService
-                    ->reserveForNewOrder($order, $lockedCart->items, $user);
-
-                /*
-                |--------------------------------------------------------------------------
-                | Create Order Payment
-                |--------------------------------------------------------------------------
-                |
-                | COD:
-                |   status = pending
-                |   proof_image_path = null
-                |   submitted_at = null
-                |
-                | E-Wallet:
-                |   status = submitted
-                |   proof_image_path = uploaded proof
-                |   submitted_at = now()
-                |--------------------------------------------------------------------------
-                */
-
-                OrderPayment::query()->create([
-                    'order_id' => $order->id,
-
-                    'payment_method_id' => $paymentMethod->id,
-
-                    'method_code' => $paymentMethod->code,
-
-                    'method_name' => $paymentMethod->name,
-
-                    'amount' => $calculation['grand_total'],
-
-                    'reference_number' => $validated['payment_reference']
-                        ?? null,
-
-                    'proof_image_path' => $proofPath,
-
-                    'status' => $paymentMethod->type === 'cod'
-                            ? 'pending'
-                            : 'submitted',
-
-                    'submitted_at' => $paymentMethod->type === 'cod'
-                            ? null
-                            : now(),
-                ]);
-
-                /*
-                |--------------------------------------------------------------------------
-                | Clear Cart
-                |--------------------------------------------------------------------------
-                */
-
-                $lockedCart
-                    ->items()
-                    ->delete();
-
-                return $order;
-            }, );
+            );
         } catch (\Throwable $exception) {
             /*
             |--------------------------------------------------------------------------
@@ -409,9 +654,15 @@ class OrderController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            if ($proofPath !== null) {
-                Storage::disk('public')
-                    ->delete($proofPath);
+            if (
+                $proofPath !==
+                null
+            ) {
+                Storage::disk(
+                    'public'
+                )->delete(
+                    $proofPath
+                );
             }
 
             throw $exception;
@@ -440,8 +691,12 @@ class OrderController extends Controller
         */
 
         try {
-            OrderPlaced::dispatch($order);
-        } catch (\Throwable $exception) {
+            OrderPlaced::dispatch(
+                $order
+            );
+        } catch (
+            \Throwable $exception
+        ) {
             report($exception);
         }
 
@@ -451,9 +706,10 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $message = $isCashOnDelivery
-            ? 'Order placed successfully. Payment will be collected on delivery.'
-            : 'Order submitted successfully and is awaiting payment verification.';
+        $message =
+            $isCashOnDelivery
+                ? 'Order placed successfully. Payment will be collected on delivery.'
+                : 'Order submitted successfully and is awaiting payment verification.';
 
         return response()->json([
             'success' => true,
@@ -472,50 +728,76 @@ class OrderController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    private function addressSnapshot(Address $address): array
-    {
+    private function addressSnapshot(
+        Address $address
+    ): array {
         return [
-            'id' => $address->id,
+            'id' =>
+                $address->id,
 
-            'location_id' => $address->location_id,
+            'location_id' =>
+                $address->location_id,
 
-            'type' => $address->type,
+            'type' =>
+                $address->type,
 
-            'label' => $address->label,
+            'label' =>
+                $address->label,
 
-            'recipient_name' => $address->recipient_name,
+            'recipient_name' =>
+                $address->recipient_name,
 
-            'phone' => $address->phone,
+            'phone' =>
+                $address->phone,
 
-            'alternate_phone' => $address->alternate_phone,
+            'alternate_phone' =>
+                $address
+                    ->alternate_phone,
 
-            'address_line_one' => $address->address_line_one,
+            'address_line_one' =>
+                $address
+                    ->address_line_one,
 
-            'address_line_two' => $address->address_line_two,
+            'address_line_two' =>
+                $address
+                    ->address_line_two,
 
-            'building' => $address->building,
+            'building' =>
+                $address->building,
 
-            'floor' => $address->floor,
+            'floor' =>
+                $address->floor,
 
-            'unit' => $address->unit,
+            'unit' =>
+                $address->unit,
 
-            'landmark' => $address->landmark,
+            'landmark' =>
+                $address->landmark,
 
-            'township' => $address->township,
+            'township' =>
+                $address->township,
 
-            'city' => $address->city,
+            'city' =>
+                $address->city,
 
-            'state' => $address->state,
+            'state' =>
+                $address->state,
 
-            'postal_code' => $address->postal_code,
+            'postal_code' =>
+                $address->postal_code,
 
-            'country_code' => $address->country_code,
+            'country_code' =>
+                $address->country_code,
 
-            'latitude' => $address->latitude,
+            'latitude' =>
+                $address->latitude,
 
-            'longitude' => $address->longitude,
+            'longitude' =>
+                $address->longitude,
 
-            'delivery_instruction' => $address->delivery_instruction,
+            'delivery_instruction' =>
+                $address
+                    ->delivery_instruction,
         ];
     }
 }

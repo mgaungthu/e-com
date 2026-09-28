@@ -18,31 +18,79 @@ class SettingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => Setting::query()->orderBy('group')->orderBy('key')->get()->mapWithKeys(fn (Setting $setting): array => [$setting->key => $setting->typedValue()]),
+            'data' => Setting::query()
+                ->orderBy('group')
+                ->orderBy('key')
+                ->get()
+                ->mapWithKeys(fn (Setting $setting): array => [
+                    $setting->key => $setting->typedValue(),
+                ]),
         ]);
     }
 
     public function update(Request $request): JsonResponse
     {
         Gate::authorize('settings.manage');
+
         $validated = $request->validate([
             'store_name' => ['required', 'string', 'max:255'],
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:30'],
             'currency' => ['required', Rule::in(['MMK'])],
             'timezone' => ['required', 'timezone'],
-            'order_prefix' => ['required', 'string', 'max:10', 'regex:/^[A-Z0-9]+$/'],
-            'default_low_stock_threshold' => ['required', 'integer', 'min:0', 'max:1000000'],
-            'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
-            'shipping_fee' => ['required', 'numeric', 'min:0'],
+            'order_prefix' => [
+                'required',
+                'string',
+                'max:10',
+                'regex:/^[A-Z0-9]+$/',
+            ],
+            'default_low_stock_threshold' => [
+                'required',
+                'integer',
+                'min:0',
+                'max:1000000',
+            ],
+            'tax_rate' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
+            'shipping_fee' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+            'checkout_discount_enabled' => [
+                'required',
+                'boolean',
+            ],
+            'checkout_discount_percent' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
         ]);
 
         foreach ($validated as $key => $value) {
-            Setting::query()->where('key', $key)->update(['value' => (string) ($value ?? '')]);
+            $storedValue = is_bool($value)
+                ? ($value ? '1' : '0')
+                : (string) ($value ?? '');
+
+            Setting::query()
+                ->where('key', $key)
+                ->update([
+                    'value' => $storedValue,
+                ]);
         }
 
         Cache::forget('app.settings');
 
-        return response()->json(['success' => true, 'message' => 'Settings updated successfully.', 'data' => $validated]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Settings updated successfully.',
+            'data' => $validated,
+        ]);
     }
 }

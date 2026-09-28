@@ -145,19 +145,7 @@
                                 "
                             >
 
-                            <div
-                                style="
-                                    margin-top: 14px;
-                                    font-size: 11px;
-                                    line-height: 18px;
-                                    font-weight: 700;
-                                    letter-spacing: 1.5px;
-                                    color: #FFFCF2;
-                                    text-transform: uppercase;
-                                "
-                            >
-                                New Order Received
-                            </div>
+                            
                         </td>
                     </tr>
 

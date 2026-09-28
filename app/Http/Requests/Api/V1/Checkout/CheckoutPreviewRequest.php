@@ -27,7 +27,8 @@ class CheckoutPreviewRequest extends FormRequest
             ],
 
             'payment_method_id' => [
-                'required',
+                'sometimes',
+                'nullable',
                 'integer',
                 'exists:payment_methods,id',
             ],

@@ -73,17 +73,7 @@
                             "
                         >
 
-                        <div
-                            style="
-                                margin-top: 14px;
-                                color: #FFFCF2;
-                                font-size: 13px;
-                                line-height: 1.5;
-                                opacity: 0.85;
-                            "
-                        >
-                            Premium Grooming Experience
-                        </div>
+                        
                     </td>
                 </tr>
 

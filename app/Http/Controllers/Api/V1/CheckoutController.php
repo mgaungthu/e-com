@@ -17,12 +17,22 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
-    public function __construct(private readonly CheckoutCalculator $checkoutCalculator) {}
+    public function __construct(
+        private readonly CheckoutCalculator $checkoutCalculator,
+    ) {}
 
-    public function preview(CheckoutPreviewRequest $request): JsonResponse
-    {
+    public function preview(
+        CheckoutPreviewRequest $request,
+    ): JsonResponse {
         $validated = $request->validated();
+
         $userId = $request->user()->id;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cart
+        |--------------------------------------------------------------------------
+        */
 
         $cart = Cart::query()
             ->where('user_id', $userId)
@@ -31,7 +41,10 @@ class CheckoutController extends Controller
             ])
             ->first();
 
-        if (! $cart || $cart->items->isEmpty()) {
+        if (
+            ! $cart
+            || $cart->items->isEmpty()
+        ) {
             throw ValidationException::withMessages([
                 'cart' => [
                     'Your cart is empty.',
@@ -39,9 +52,17 @@ class CheckoutController extends Controller
             ]);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Shipping Address
+        |--------------------------------------------------------------------------
+        */
+
         $shippingAddress = Address::query()
             ->where('user_id', $userId)
-            ->find($validated['shipping_address_id']);
+            ->find(
+                $validated['shipping_address_id'],
+            );
 
         if (! $shippingAddress) {
             throw ValidationException::withMessages([
@@ -51,9 +72,17 @@ class CheckoutController extends Controller
             ]);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Billing Address
+        |--------------------------------------------------------------------------
+        */
+
         $billingAddress = Address::query()
             ->where('user_id', $userId)
-            ->find($validated['billing_address_id']);
+            ->find(
+                $validated['billing_address_id'],
+            );
 
         if (! $billingAddress) {
             throw ValidationException::withMessages([
@@ -63,22 +92,59 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $paymentMethod = PaymentMethod::query()
-            ->where('is_active', true)
-            ->find($validated['payment_method_id']);
+        /*
+        |--------------------------------------------------------------------------
+        | Payment Method
+        |--------------------------------------------------------------------------
+        |
+        | The payment method is optional for checkout preview.
+        |
+        | Address / Review:
+        |   The mobile app can calculate the complete order summary before the
+        |   customer selects a payment method.
+        |
+        | Payment:
+        |   Once a payment method is selected, the same preview endpoint is
+        |   called again with payment_method_id.
+        |
+        | Actual order creation still requires payment_method_id through
+        | StoreOrderRequest.
+        |--------------------------------------------------------------------------
+        */
 
-        if (! $paymentMethod) {
-            throw ValidationException::withMessages([
-                'payment_method_id' => [
-                    'The selected payment method is unavailable.',
-                ],
-            ]);
+        $paymentMethod = null;
+
+        $paymentMethodId =
+            $validated['payment_method_id']
+            ?? null;
+
+        if ($paymentMethodId !== null) {
+            $paymentMethod = PaymentMethod::query()
+                ->where('is_active', true)
+                ->find($paymentMethodId);
+
+            if (! $paymentMethod) {
+                throw ValidationException::withMessages([
+                    'payment_method_id' => [
+                        'The selected payment method is unavailable.',
+                    ],
+                ]);
+            }
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cart Validation
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($cart->items as $item) {
             $product = $item->product;
 
-            if (! $product || ! $product->is_active) {
+            if (
+                ! $product
+                || ! $product->is_active
+            ) {
                 throw ValidationException::withMessages([
                     'cart' => [
                         'One or more products in your cart are unavailable.',
@@ -97,32 +163,66 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            if ($item->quantity > $product->stock_quantity) {
+            if (
+                $item->quantity
+                > $product->stock_quantity
+            ) {
                 throw ValidationException::withMessages([
                     'cart' => [
                         "Only {$product->stock_quantity} item(s) are available for {$product->name}.",
                     ],
                 ]);
             }
-
         }
-        $calculation = $this->checkoutCalculator->calculate($cart->items, $shippingAddress);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate Checkout
+        |--------------------------------------------------------------------------
+        */
+
+        $calculation =
+            $this->checkoutCalculator->calculate(
+                $cart->items,
+                $shippingAddress,
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Preview Response
+        |--------------------------------------------------------------------------
+        */
 
         $preview = [
             'cart' => new CartResource($cart),
 
-            'shipping_address' => new AddressResource($shippingAddress),
+            'shipping_address' =>
+                new AddressResource(
+                    $shippingAddress,
+                ),
 
-            'billing_address' => new AddressResource($billingAddress),
+            'billing_address' =>
+                new AddressResource(
+                    $billingAddress,
+                ),
 
-            'payment_method' => new PaymentMethodResource($paymentMethod),
+            'payment_method' =>
+                $paymentMethod
+                    ? new PaymentMethodResource(
+                        $paymentMethod,
+                    )
+                    : null,
 
             ...$calculation,
         ];
 
         return response()->json([
             'success' => true,
-            'data' => new CheckoutPreviewResource($preview),
+
+            'data' =>
+                new CheckoutPreviewResource(
+                    $preview,
+                ),
         ]);
     }
 }

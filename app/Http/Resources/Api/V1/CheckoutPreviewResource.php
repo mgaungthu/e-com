@@ -17,7 +17,9 @@ class CheckoutPreviewResource extends JsonResource
 
             'summary' => [
                 'subtotal' => $this['subtotal'],
+                'discount_percentage' => $this['discount_percentage'],
                 'discount_total' => $this['discount_total'],
+                'total' => $this['total'],
                 'shipping_total' => $this['shipping_total'],
                 'tax_rate' => $this['tax_rate'],
                 'tax_total' => $this['tax_total'],
