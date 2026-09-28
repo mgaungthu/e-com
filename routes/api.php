@@ -90,6 +90,8 @@ Route::domain(config('app.api_domain'))->group(function () {
                             'updateEmail',
                         ])->middleware('throttle:5,1');
 
+                        Route::delete('/account', [AuthController::class, 'deleteAccount'])->middleware('throttle:5,1');
+
                         Route::post('/logout', [AuthController::class, 'logout']);
 
                         Route::post('/logout-all', [AuthController::class, 'logoutAll']);

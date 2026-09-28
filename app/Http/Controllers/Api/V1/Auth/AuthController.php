@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Auth\DeleteAccountRequest;
 use App\Http\Requests\Api\V1\Auth\GoogleLoginRequest;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
 use App\Http\Requests\Api\V1\Auth\RegisterRequest;
@@ -15,7 +16,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
 
@@ -457,6 +460,67 @@ class AuthController extends Controller
                 'requires_email_verification' =>
                     ! $user->hasVerifiedEmail(),
             ],
+        );
+    }
+
+    public function deleteAccount(DeleteAccountRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $user = $request->user();
+
+        if (isset($validated['password'])) {
+            if (! Hash::check($validated['password'], $user->password)) {
+                throw ValidationException::withMessages([
+                    'password' => 'The password is incorrect.',
+                ]);
+            }
+        } else {
+            $googleError = ['google_id_token' => 'Unable to verify the linked Google account.'];
+
+            if ($user->google_id === null) {
+                throw ValidationException::withMessages($googleError);
+            }
+
+            try {
+                $payload = $this->googleAuthService->verifyIdToken($validated['google_id_token']);
+            } catch (Throwable $exception) {
+                throw ValidationException::withMessages($googleError);
+            }
+
+            if (
+                $payload['sub'] !== $user->google_id
+                || strtolower(trim($payload['email'])) !== strtolower(trim($user->email))
+            ) {
+                throw ValidationException::withMessages($googleError);
+            }
+        }
+
+        $avatarPath = $user->avatar_path;
+
+        // Credentials must be verified before any destructive cleanup.
+        DB::transaction(function () use ($user) {
+            $user->tokens()->delete();
+            $user->notifications()->delete();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+
+            // Spatie model events detach pivots; foreign keys handle owned data
+            // and retain historical orders with a null user_id.
+            $user->delete();
+        });
+
+        if ($avatarPath) {
+            try {
+                if (! Storage::disk('public')->delete($avatarPath)) {
+                    report(new RuntimeException('Unable to remove deleted account avatar.'));
+                }
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return $this->successResponse(
+            message: 'Account deleted successfully.',
         );
     }
 
