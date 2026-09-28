@@ -344,13 +344,20 @@ class AuthController extends Controller
                             ? $picture
                             : null,
 
-                    /*
-                     * Google has already verified the email.
-                     */
-                    'email_verified_at' => now(),
-
                     'status' => 'active',
                 ]);
+
+                /*
+                 * Google has already verified ownership
+                 * of this email address.
+                 *
+                 * email_verified_at is intentionally set with
+                 * forceFill so it does not depend on the model's
+                 * mass-assignment configuration.
+                 */
+                $user->forceFill([
+                    'email_verified_at' => now(),
+                ])->save();
 
                 /*
                  * Keep the same role convention as normal

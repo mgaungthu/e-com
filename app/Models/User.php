@@ -25,6 +25,7 @@ use Spatie\Permission\Traits\HasRoles;
     'phone',
     'password',
     'avatar_path',
+    'email_verified_at',
     'google_id',
     'google_avatar_url',
     'status',
