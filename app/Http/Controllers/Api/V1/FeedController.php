@@ -631,63 +631,63 @@ class FeedController extends Controller
     }
 
     private function visibleQuery(
-        Request $request
-    ) {
-        $userId =
-            $request
-                ->user()
-                ?->id;
+    Request $request
+) {
+    $userId =
+        $request
+            ->user('sanctum')
+            ?->id;
 
-        return Feed::query()
-            ->visible()
-            ->with([
-                'media',
+    return Feed::query()
+        ->visible()
+        ->with([
+            'media',
 
-                'products.primaryImage',
+            'products.primaryImage',
 
-                'author:id,name,display_name,avatar_path',
+            'author:id,name,display_name,avatar_path',
 
-                'likes' =>
-                    fn ($query) =>
-                        $userId
-                            ? $query->where(
-                                'user_id',
-                                $userId
-                            )
-                            : $query
-                                ->whereRaw(
-                                    '1 = 0'
-                                ),
+            'likes' =>
+                fn ($query) =>
+                    $userId
+                        ? $query->where(
+                            'user_id',
+                            $userId
+                        )
+                        : $query
+                            ->whereRaw(
+                                '1 = 0'
+                            ),
 
-                'bookmarks' =>
-                    fn ($query) =>
-                        $userId
-                            ? $query->where(
-                                'user_id',
-                                $userId
-                            )
-                            : $query
-                                ->whereRaw(
-                                    '1 = 0'
-                                ),
-            ])
-            ->withCount([
-                'likes',
+            'bookmarks' =>
+                fn ($query) =>
+                    $userId
+                        ? $query->where(
+                            'user_id',
+                            $userId
+                        )
+                        : $query
+                            ->whereRaw(
+                                '1 = 0'
+                            ),
+        ])
+        ->withCount([
+            'likes',
 
-                'comments' =>
-                    fn ($query) =>
-                        $query->where(
-                            'is_active',
-                            true
-                        ),
-            ])
-            ->orderByDesc(
-                'published_at'
-            )
-            ->orderByDesc(
-                'id'
-            );
-    }
+            'comments' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ])
+        ->orderByDesc(
+            'published_at'
+        )
+        ->orderByDesc(
+            'id'
+        );
+}
 
     private function interactionResponse(
         Feed $feed,
