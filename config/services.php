@@ -16,6 +16,9 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID'),
+    ],
     'expo' => [
         'push_url' => env('EXPO_PUSH_URL', 'https://exp.host/--/api/v2/push/send'),
 

@@ -54,6 +54,7 @@ Route::domain(config('app.api_domain'))->group(function () {
                 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
                 Route::post('/google', [AuthController::class, 'google'])->middleware('throttle:10,1');
+                Route::post('/apple', [AuthController::class, 'apple'])->middleware('throttle:10,1');
 
                 /*
                 |--------------------------------------------------------------------------

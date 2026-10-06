@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Auth\AppleLoginRequest;
 use App\Http\Requests\Api\V1\Auth\DeleteAccountRequest;
 use App\Http\Requests\Api\V1\Auth\GoogleLoginRequest;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
@@ -11,8 +12,10 @@ use App\Http\Requests\Api\V1\Auth\UpdateProfileRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\User;
+use App\Services\Auth\AppleAuthService;
 use App\Services\Auth\EmailVerificationService;
 use App\Services\Auth\GoogleAuthService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +33,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly EmailVerificationService $emailVerificationService,
         private readonly GoogleAuthService $googleAuthService,
+        private readonly AppleAuthService $appleAuthService,
     ) {
     }
 
@@ -458,6 +462,95 @@ class AuthController extends Controller
         );
     }
 
+    public function apple(AppleLoginRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        try {
+            $payload = $this->appleAuthService->verifyIdToken($validated['identity_token']);
+        } catch (RuntimeException $exception) {
+            report($exception);
+
+            return $this->errorResponse('Unable to authenticate with Apple.', 422);
+        }
+
+        $appleId = $payload['sub'];
+        $email = ($payload['email_verified'] ?? false) === true
+            ? ($payload['email'] ?? null)
+            : null;
+
+        try {
+            $result = DB::transaction(function () use ($appleId, $email, $validated, $request) {
+                $user = User::query()->where('apple_id', $appleId)->lockForUpdate()->first();
+
+                if (! $user && $email !== null) {
+                    $user = User::query()->where('email', $email)->lockForUpdate()->first();
+                }
+
+                if ($user) {
+                    if ($user->status !== 'active') {
+                        throw new RuntimeException($this->accountStatusMessage($user->status), 403);
+                    }
+
+                    if ($user->apple_id !== null && $user->apple_id !== $appleId) {
+                        throw new RuntimeException('This email is already linked to another Apple account.', 409);
+                    }
+
+                    $user->apple_id = $appleId;
+
+                    // A provider-ID match does not prove ownership of a different stored email.
+                    if ($email !== null && strtolower(trim($user->email)) === $email && ! $user->hasVerifiedEmail()) {
+                        $user->email_verified_at = now();
+                    }
+                } else {
+                    // An existing Apple link can log in without email; a new account needs one.
+                    if ($email === null) {
+                        throw new RuntimeException('A verified Apple email is required to create or link an account.', 422);
+                    }
+
+                    $user = User::query()->create([
+                        'name' => $email,
+                        'display_name' => $email,
+                        'email' => $email,
+                        'password' => Hash::make(Str::random(64)),
+                        'apple_id' => $appleId,
+                        'email_verified_at' => now(),
+                        'status' => 'active',
+                    ]);
+                    $user->assignRole('customer');
+                }
+
+                $user->forceFill([
+                    'last_login_at' => now(),
+                    'last_login_ip' => $request->ip(),
+                ])->save();
+
+                $token = $user->createToken($validated['device_name'] ?? 'mobile-app', ['customer'])->plainTextToken;
+                $user = $user->fresh();
+
+                return [
+                    'user' => new UserResource($user),
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                    'requires_email_verification' => ! $user->hasVerifiedEmail(),
+                ];
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Unique indexes also protect concurrent first-time sign-ins and linking attempts.
+            return $this->errorResponse('This Apple account or email is already linked. Please try signing in again.', 409);
+        } catch (Throwable $exception) {
+            if ($exception instanceof RuntimeException && in_array($exception->getCode(), [403, 409, 422], true)) {
+                return $this->errorResponse($exception->getMessage(), $exception->getCode());
+            }
+
+            report($exception);
+
+            return $this->errorResponse('Unable to authenticate with Apple.', 500);
+        }
+
+        return $this->successResponse(data: $result, message: 'Login successful.');
+    }
+
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -503,6 +596,26 @@ class AuthController extends Controller
                     'password' => 'The password is incorrect.',
                 ]);
             }
+        } elseif (isset($validated['apple_identity_token'])) {
+            $appleError = ['apple_identity_token' => 'Unable to verify the linked Apple account.'];
+
+            if ($user->apple_id === null) {
+                throw ValidationException::withMessages($appleError);
+            }
+
+            try {
+                $payload = $this->appleAuthService->verifyIdToken($validated['apple_identity_token']);
+            } catch (Throwable) {
+                throw ValidationException::withMessages($appleError);
+            }
+
+            // Apple subject is stable even when email is absent or the BSC email has changed.
+            if ($payload['sub'] !== $user->apple_id) {
+                throw ValidationException::withMessages($appleError);
+            }
+
+            // This reauthenticates local deletion only. Apple authorization revocation needs
+            // an access/refresh token obtained by exchanging a native authorization code.
         } else {
             $googleError = ['google_id_token' => 'Unable to verify the linked Google account.'];
 

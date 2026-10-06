@@ -14,6 +14,11 @@ class EmailVerificationApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function apiUrl(string $path): string
+    {
+        return 'https://'.config('app.api_domain').'/v1/'.$path;
+    }
+
     public function test_fifth_incorrect_code_locks_verification_without_deleting_the_code(): void
     {
         $user = User::factory()->unverified()->create();
@@ -22,13 +27,13 @@ class EmailVerificationApiTest extends TestCase
 
         for ($attempt = 1; $attempt <= 4; $attempt++) {
             $this->withToken($token)
-                ->postJson('/api/v1/auth/email/verify', ['code' => '0000'])
+                ->postJson($this->apiUrl('auth/email/verify'), ['code' => '0000'])
                 ->assertUnprocessable()
                 ->assertJsonPath('message', 'Verification code is incorrect.');
         }
 
         $this->withToken($token)
-            ->postJson('/api/v1/auth/email/verify', ['code' => '0000'])
+            ->postJson($this->apiUrl('auth/email/verify'), ['code' => '0000'])
             ->assertTooManyRequests()
             ->assertJsonPath('message', 'Too many incorrect attempts. Please request a new verification code.');
 
@@ -47,7 +52,7 @@ class EmailVerificationApiTest extends TestCase
         $verification = $this->verificationFor($user, '1234', attempts: 5, lastSentAt: now()->subMinute());
 
         $this->withToken($token)
-            ->postJson('/api/v1/auth/email/resend')
+            ->postJson($this->apiUrl('auth/email/resend'))
             ->assertOk()
             ->assertJsonPath('data.requires_email_verification', true);
 
@@ -67,7 +72,7 @@ class EmailVerificationApiTest extends TestCase
         $token = $user->createToken('Test Device')->plainTextToken;
 
         $this->withToken($token)
-            ->patchJson('/api/v1/auth/email', ['email' => 'new@example.com'])
+            ->patchJson($this->apiUrl('auth/email'), ['email' => 'new@example.com'])
             ->assertOk()
             ->assertJsonPath('data.user.email', 'new@example.com')
             ->assertJsonPath('data.user.email_verified_at', null)
@@ -90,7 +95,7 @@ class EmailVerificationApiTest extends TestCase
         $verification = $this->verificationFor($user, '1234');
 
         $this->withToken($token)
-            ->postJson('/api/v1/auth/email/verify', ['code' => '1234'])
+            ->postJson($this->apiUrl('auth/email/verify'), ['code' => '1234'])
             ->assertOk()
             ->assertJsonPath('data.requires_email_verification', false)
             ->assertJsonPath('data.user.id', $user->id);
@@ -107,12 +112,12 @@ class EmailVerificationApiTest extends TestCase
         $token = $user->createToken('Test Device')->plainTextToken;
 
         $this->withToken($token)
-            ->getJson('/api/v1/auth/me')
+            ->getJson($this->apiUrl('auth/me'))
             ->assertOk()
             ->assertJsonPath('data.user.id', $user->id);
 
         $this->withToken($token)
-            ->getJson('/api/v1/cart')
+            ->getJson($this->apiUrl('cart'))
             ->assertForbidden()
             ->assertExactJson([
                 'success' => false,
@@ -126,12 +131,12 @@ class EmailVerificationApiTest extends TestCase
         $token = $user->createToken('Test Device')->plainTextToken;
 
         $this->withToken($token)
-            ->getJson('/api/v1/cart')
+            ->getJson($this->apiUrl('cart'))
             ->assertOk()
             ->assertJsonPath('success', true);
 
         $this->withToken($token)
-            ->getJson('/api/v1/addresses')
+            ->getJson($this->apiUrl('addresses'))
             ->assertOk()
             ->assertJsonPath('success', true);
     }

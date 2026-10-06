@@ -22,8 +22,9 @@ class DeleteAccountRequest extends FormRequest
     {
         return [
             'confirmation' => ['required', 'string', 'in:confirm'],
-            'password' => ['nullable', 'string', 'required_without:google_id_token', 'prohibits:google_id_token'],
-            'google_id_token' => ['nullable', 'string', 'required_without:password', 'prohibits:password'],
+            'password' => ['nullable', 'string', 'required_without_all:google_id_token,apple_identity_token', 'prohibits:google_id_token,apple_identity_token'],
+            'google_id_token' => ['nullable', 'string', 'required_without_all:password,apple_identity_token', 'prohibits:password,apple_identity_token'],
+            'apple_identity_token' => ['nullable', 'string', 'max:16384', 'required_without_all:password,google_id_token', 'prohibits:password,google_id_token'],
         ];
     }
 }
